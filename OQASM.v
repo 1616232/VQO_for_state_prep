@@ -33,9 +33,25 @@ Inductive exp := SKIP (p:posi) | X (p:posi) | CU (p:posi) (e:exp)
         | QFT (x:var) (b:nat) (* H on x ; CR gates on everything within (size - b). *)
         | RQFT (x:var) (b:nat)
        (* | H (p:posi) *)
+       | H (x:posi) (* H on x ; CR gates on everything within (size - b). *)
         | Seq (s1:exp) (s2:exp).
 
-Inductive type := Had (b:nat) | Phi (b:nat) | Nor.
+Inductive type := Had (b:nat) | Nor.
+
+(* Fixpoint greenberger_horne_zeilinger (p: list of qubits) :=
+   match p with 
+   | nil => _
+   | a::b => Nor
+   end. 
+   May need a second function to allow Hadamard gate to be applied to the first qubit*)
+
+(*For Hamming weight, first perform biased Hadamard transform, second perform quantum addition *)
+
+(*For preparing a state that is a superposition of the binary representation of all integers from 
+0 to N (less than, sum_j |j> |j < N>) we'd need something like the quantum fourier transform
+or use the procedure with the H, controlled H, and R y gates*)
+
+(* for preparing a superposition of permutations, many controlled swap gates*)
 
 Notation "p1 ; p2" := (Seq p1 p2) (at level 50) : exp_scope.
 
