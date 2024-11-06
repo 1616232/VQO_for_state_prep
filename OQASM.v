@@ -33,10 +33,10 @@ Inductive exp := SKIP (p:posi) | X (p:posi) | CU (p:posi) (e:exp)
         | QFT (x:var) (b:nat) (* H on x ; CR gates on everything within (size - b). *)
         | RQFT (x:var) (b:nat)
        (* | H (p:posi) *)
-       | H (x:posi) (* H on x ; CR gates on everything within (size - b). *)
+       (* | H (x:posi)  H on x ; CR gates on everything within (size - b). *)
         | Seq (s1:exp) (s2:exp).
 
-Inductive type := Had | Nor.
+Inductive type := Had (b:nat) | Phi (b:nat) | Nor.
 
 (* Fixpoint greenberger_horne_zeilinger (p: list of qubits) :=
    match p with 
