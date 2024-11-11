@@ -28,7 +28,7 @@ Fixpoint inv_pexp p :=
   | PSeq p1 p2 => inv_pexp p2 [;] inv_pexp p1
    end.
 
-Inductive iota:= AddInst (k: iota) (m: iota) | CU (x:posi) (y:iota)| exp (x:list posi) | Ry (p: posi).
+Inductive iota:= AddInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| exp (x:list posi) | Ry (p: posi).
 Inductive e := Next (p: pexp) | Had (b:list nat) | New (b:list nat) | AddProg (k: iota) (m: iota).
 
 (* This is the semantics for basic gate set of the language. *)
