@@ -8,6 +8,7 @@ Require Import BasicUtility.
 Require Import MathSpec.
 Require Import Classical_Prop.
 Require Import OQASM.
+Require Import Coq.QArith.QArith.
 (**********************)
 (** Unitary Programs **)
 (**********************)
@@ -29,7 +30,7 @@ Fixpoint inv_pexp p :=
    end.
 
 Definition rand:= bool.
-Inductive iota:= AddInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| exp (x:list posi) | Ry (p: posi).
+Inductive iota:= AddInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| exp (x:list posi) | Ry (p: posi) (r: Q).
 Inductive e := Next (p: pexp) | Had (b:list posi) | New (b:list posi) 
 | AddProg (k: iota) (m: iota)| Meas (x:list posi) | IF (k: rand) (op1: e) (op2: e).
 
