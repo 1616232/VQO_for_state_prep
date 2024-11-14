@@ -9,7 +9,7 @@ if fail -> repeat until success*)
 (*uniform superposition*)
 (*Ry Had (posi)*)
 Definition a: var :=3.
-Example (Ry (a,3)).
+Definition test: iota:= Ry (a,3).
 
 (*permutations*)
 (*Fredkin gates; can be built with  *)

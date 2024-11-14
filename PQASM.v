@@ -41,7 +41,7 @@ Fixpoint pexp_sem (env:var -> nat) (e:pexp) (st: posi -> val) : (posi -> val) :=
     end.
 
 
-Inductive well_typed_pexp (aenv: var -> nat) : env -> pexp -> env -> Prop :=
+(* Inductive well_typed_pexp (aenv: var -> nat) : env -> pexp -> env -> Prop :=
     | oexp_type : forall env e env', well_typed_oexp aenv env e env' -> well_typed_pexp aenv env (Oexp e) env'
     | rz_had : forall env b p q, Env.MapsTo (fst p) (Had b) env -> well_typed_pexp aenv env (Oexp (RZ q p)) env
     | rrz_had : forall env b p q, Env.MapsTo (fst p) (Had b) env -> well_typed_pexp aenv env (Oexp (RRZ q p)) env
@@ -52,7 +52,7 @@ Inductive well_typed_pexp (aenv: var -> nat) : env -> pexp -> env -> Prop :=
               Env.Equal env' (Env.add (fst p) (Had (S b)) env) ->  
                   well_typed_pexp aenv env (H p) env'
     | pe_seq : forall env env' env'' e1 e2, well_typed_pexp aenv env e1 env' -> 
-                 well_typed_pexp aenv env' e2 env'' -> well_typed_pexp aenv env (e1 [;] e2) env''.
+                 well_typed_pexp aenv env' e2 env'' -> well_typed_pexp aenv env (e1 [;] e2) env''. *)
 
 Inductive pexp_WF (aenv:var -> nat): pexp -> Prop :=
      | oexp_WF : forall e, exp_WF aenv e -> pexp_WF aenv (Oexp e)
