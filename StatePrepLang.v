@@ -25,6 +25,7 @@ Definition test: iota:= Ry (b,d) (5 / 4).
 
 (*Fredkin gates; can be built with  a whole lot of CNOT and not gates*)
 
+Definition permutations: iota:= ICU (b,d) (Ry (b,d) (5 / 4)).
 
 (*Hamming weight*)
 (*Ry then Z?*)
