@@ -79,7 +79,10 @@ i * 2 pi  3/2 pi == rz_val , 0 -> True, 1 -> true ,, (1/2 + 1/4) * 2 pi
 *)
 
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) : eta_state :=
-   match e with | Ry p r => ry_rotate st p r rmax 
+   match e with 
+   | Ry p r => ry_rotate st p r rmax 
+   | SeqInst a b => instr_sem rmax b (instr_sem rmax a st)
+   | ICU x y => 
    end.
 
 (* This is the semantics for basic gate set of the language. 
