@@ -30,16 +30,68 @@ Fixpoint inv_pexp p :=
    end.
 
 Definition rand:= bool.
-Inductive iota:= AddInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| mu (e: exp) (x:list posi) | Ry (p: posi) (r: Q).
-Inductive e := Next (p: pexp) | Had (b:list posi) | New (b:list posi) 
-| AddProg (k: iota) (m: iota)| Meas (x:list posi) | IF (k: rand) (op1: e) (op2: e).
+Inductive mu := Add (ps: list posi) (n:nat) (* we add nat to the bitstring represenation of ps *)
+              | Less (ps : list posi) (n:nat) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
+              | Equal (ps : list posi) (n:nat) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *).
 
-(* This is the semantics for basic gate set of the language. *)
+Inductive iota:= SeqInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
+
+Inductive e := Next (p: pexp) | Had (b:list posi) | New (b:list posi) 
+| AddProg (k: iota) (m: iota)| Meas (x:list posi) | IFa (k: rand) (op1: e) (op2: e).
+
+(*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
+Inductive basis_val := Hval (b1: bool) (b2:bool) | Nval (b:bool) | Rval (n:rz_val).
+
+Definition eta_state : Type := posi -> basis_val.
+
+Definition pi32 := update (update allfalse 0 true) 1 true.
+
+Definition angle_sum (f g:rz_val) (rmax:nat) := cut_n (sumfb false f g) rmax.
+
+Definition angle_sub (f g: rz_val) (rmax:nat) := cut_n (sumfb false f (negatem rmax g)) rmax.
+
+Definition ry_rotate (st:eta_state) (p:posi) (r:rz_val) (rmax:nat) :=
+   match st p with Hval b1 b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
+                  | Nval b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
+                  |  Rval r1 => st[ p |-> Rval (angle_sum r1 r rmax)]
+   end.
+
+(*
+Add [q1,q2] 1
+
+take q1 and q2 value in st, and then compose them to be a bitstring, and then add 1, 
+,after adding one, then you resolve them into two bits.
+
+nat -> anything, use update
+
+posi -> anything, use st[p |-> up_h (st p)]
+
+1 / 2^rmax
+
+rz_val : nat -> bool, a bitstring, 0 is the max number, and rz_val (rmax - 1) is the least significant bit,
+
+0_position: 1/2. 
+1_position: 1/4.
+2_position: 1/8.
+
+i * 2 pi  3/2 pi == rz_val , 0 -> True, 1 -> true ,, (1/2 + 1/4) * 2 pi 
+
+*)
+
+Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) : eta_state :=
+   match e with | Ry p r => ry_rotate st p r rmax 
+   end.
+
+(* This is the semantics for basic gate set of the language. 
 Fixpoint pexp_sem (env:var -> nat) (e:pexp) (st: posi -> val) : (posi -> val) :=
    match e with (Oexp e') => (exp_sem env e' st)
                | H p => st[p |-> up_h (st p)]
               | e1 [;] e2 => pexp_sem env e2 (pexp_sem env e1 st)
     end.
+
+ (env:var -> nat) (i:iota) (st: posi -> val) : (posi -> val) :=
+
+*)
 
 Fixpoint instruction_sem (env:var -> nat) (i:iota) (st: posi -> val) : (posi -> val) :=
 match i with
