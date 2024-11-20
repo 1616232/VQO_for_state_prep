@@ -82,7 +82,8 @@ Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) : eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
    | SeqInst a b => instr_sem rmax b (instr_sem rmax a st)
-   | ICU x y => 
+   | ICU x y => instr_sem rmax y st
+   | Ora m => 
    end.
 
 (* This is the semantics for basic gate set of the language. 
@@ -96,7 +97,7 @@ Fixpoint pexp_sem (env:var -> nat) (e:pexp) (st: posi -> val) : (posi -> val) :=
 
 *)
 
-Fixpoint instruction_sem (env:var -> nat) (i:iota) (st: posi -> val) : (posi -> val) :=
+(* Fixpoint instruction_sem (env:var -> nat) (i:iota) (st: posi -> val) : (posi -> val) :=
 match i with
 | Ry (p: posi) (r: Q) => match (st p) with
     | =>
@@ -104,7 +105,7 @@ match i with
     | _ =>
 | ICU (p: posi) (k: iota) => (instruction_sem env k st).
 | AddInst (k: iota) (m: iota) => (instruction_sem env k st)
-| mu (e:exp) (x:list posi) => (exp_sem exp).
+| mu (e:exp) (x:list posi) => (exp_sem exp). *)
 
 
 (* Inductive well_typed_pexp (aenv: var -> nat) : env -> pexp -> env -> Prop :=
