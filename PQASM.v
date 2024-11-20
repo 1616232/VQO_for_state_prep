@@ -14,7 +14,7 @@ Require Import Coq.QArith.QArith.
 (**********************)
 
 Declare Scope exp_scope.
-Delimit Scope exp_scope with exp.
+Delimit Scope exp_scope with expScope.
 Local Open Scope exp_scope.
 Local Open Scope nat_scope.
 
@@ -30,7 +30,7 @@ Fixpoint inv_pexp p :=
    end.
 
 Definition rand:= bool.
-Inductive iota:= AddInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| exp (x:list posi) | Ry (p: posi) (r: Q).
+Inductive iota:= AddInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| mu (e: exp) (x:list posi) | Ry (p: posi) (r: Q).
 Inductive e := Next (p: pexp) | Had (b:list posi) | New (b:list posi) 
 | AddProg (k: iota) (m: iota)| Meas (x:list posi) | IF (k: rand) (op1: e) (op2: e).
 
@@ -40,6 +40,16 @@ Fixpoint pexp_sem (env:var -> nat) (e:pexp) (st: posi -> val) : (posi -> val) :=
                | H p => st[p |-> up_h (st p)]
               | e1 [;] e2 => pexp_sem env e2 (pexp_sem env e1 st)
     end.
+
+Fixpoint instruction_sem (env:var -> nat) (i:iota) (st: posi -> val) : (posi -> val) :=
+match i with
+| Ry (p: posi) (r: Q) => match (st p) with
+    | =>
+    | => 
+    | _ =>
+| ICU (p: posi) (k: iota) => (instruction_sem env k st).
+| AddInst (k: iota) (m: iota) => (instruction_sem env k st)
+| mu (e:exp) (x:list posi) => (exp_sem exp).
 
 
 (* Inductive well_typed_pexp (aenv: var -> nat) : env -> pexp -> env -> Prop :=
