@@ -9,6 +9,7 @@ Require Import MathSpec.
 Require Import Classical_Prop.
 Require Import OQASM.
 Require Import Coq.QArith.QArith.
+Import Nat (eqb).
 (**********************)
 (** Unitary Programs **)
 (**********************)
@@ -55,6 +56,36 @@ Definition ry_rotate (st:eta_state) (p:posi) (r:rz_val) (rmax:nat) :=
                   | Nval b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
                   |  Rval r1 => st[ p |-> Rval (angle_sum r1 r rmax)]
    end.
+
+Definition match_posi (a: posi) (b:posi): bool :=
+  match a with
+  | (w,x) => match b with 
+      |(y,z) => match (eqb w y) with
+          |false => false
+          |true => match (eqb x z) with 
+                |true => true
+                |false => false
+                end
+          end
+      end
+    end.
+
+Fixpoint disjoint_match (target: posi) (str: list posi): bool :=
+  match str with 
+  |[] => true
+  | h::t => match match_posi h target with
+      |true => disjoint_match target t 
+      | false => false 
+      end
+    end.
+Fixpoint disjoint_list (str: list posi): bool :=
+    match str with
+    | [] => true
+    | h::t => match disjoint_match h t with
+        | false => false
+        | true => disjoint_list t
+        end
+     end.   
 
 (*
 Add [q1,q2] 1
