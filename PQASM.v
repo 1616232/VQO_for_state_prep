@@ -78,12 +78,26 @@ i * 2 pi  3/2 pi == rz_val , 0 -> True, 1 -> true ,, (1/2 + 1/4) * 2 pi
 
 *)
 
+Fixpoint sum (str: list posi) : (n:nat) :=
+  match str with 
+  | nil => 0
+  | h::t => match some_fun_here h with 
+      | 
+
+
+
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) : eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
    | SeqInst a b => instr_sem rmax b (instr_sem rmax a st)
-   | ICU x y => instr_sem rmax y st
-   | Ora m => 
+   | ICU x y => match x with 
+                | 0 -> 
+                | 1 -> instr_sem rmax y st
+   | Ora m => match m with 
+      | Add ps n => 
+      | Less ps n p =>
+      | Equal ps n p =>
+      end
    end.
 
 (* This is the semantics for basic gate set of the language. 
