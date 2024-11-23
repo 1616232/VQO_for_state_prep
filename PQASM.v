@@ -10,6 +10,7 @@ Require Import Classical_Prop.
 Require Import OQASM.
 Require Import Coq.QArith.QArith.
 Import Nat (eqb).
+From Coq Require Import BinaryString.
 (**********************)
 (** Unitary Programs **)
 (**********************)
@@ -31,9 +32,9 @@ Fixpoint inv_pexp p :=
    end.
 
 Definition rand:= bool.
-Inductive mu := Add (ps: list posi) (n:nat) (* we add nat to the bitstring represenation of ps *)
-              | Less (ps : list posi) (n:nat) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
-              | Equal (ps : list posi) (n:nat) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *).
+Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstring represenation of ps *)
+              | Less (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
+              | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *).
 
 Inductive iota:= SeqInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
 
@@ -51,10 +52,32 @@ Definition angle_sum (f g:rz_val) (rmax:nat) := cut_n (sumfb false f g) rmax.
 
 Definition angle_sub (f g: rz_val) (rmax:nat) := cut_n (sumfb false f (negatem rmax g)) rmax.
 
-Definition ry_rotate (st:eta_state) (p:posi) (r:rz_val) (rmax:nat) :=
+Definition ry_rotate (st:eta_state) (p:posi) (r:rz_val) (rmax:nat): eta_state :=
    match st p with Hval b1 b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
                   | Nval b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
                   |  Rval r1 => st[ p |-> Rval (angle_sum r1 r rmax)]
+   end.
+
+Fixpoint sumOfBits (st:eta_state) (str: list posi) (n:(nat-> bool)): eta_state :=
+  match str with 
+  | [] => st
+  | h::t => match st h with 
+      | Hval b1 b2 => if b2 then st[p |-> ]
+      | Nval b2
+      | Rval r1 
+
+Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) : eta_state :=
+   match e with 
+   | Ry p r => ry_rotate st p r rmax 
+   | SeqInst a b => instr_sem rmax b (instr_sem rmax a st)
+   | Ora m => match m with 
+   | Add ps n => sumOfBits st ps n
+   | Less ps n p =>
+   | Equal ps n p =>
+   end
+ | ICU x y => match x with 
+   | 0 -> 
+   | 1 -> instr_sem rmax y st
    end.
 
 Definition match_posi (a: posi) (b:posi): bool :=
@@ -78,6 +101,7 @@ Fixpoint disjoint_match (target: posi) (str: list posi): bool :=
       | false => false 
       end
     end.
+
 Fixpoint disjoint_list (str: list posi): bool :=
     match str with
     | [] => true
@@ -108,28 +132,6 @@ rz_val : nat -> bool, a bitstring, 0 is the max number, and rz_val (rmax - 1) is
 i * 2 pi  3/2 pi == rz_val , 0 -> True, 1 -> true ,, (1/2 + 1/4) * 2 pi 
 
 *)
-
-Fixpoint sum (str: list posi) : (n:nat) :=
-  match str with 
-  | nil => 0
-  | h::t => match some_fun_here h with 
-      | 
-
-
-
-Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) : eta_state :=
-   match e with 
-   | Ry p r => ry_rotate st p r rmax 
-   | SeqInst a b => instr_sem rmax b (instr_sem rmax a st)
-   | ICU x y => match x with 
-                | 0 -> 
-                | 1 -> instr_sem rmax y st
-   | Ora m => match m with 
-      | Add ps n => 
-      | Less ps n p =>
-      | Equal ps n p =>
-      end
-   end.
 
 (* This is the semantics for basic gate set of the language. 
 Fixpoint pexp_sem (env:var -> nat) (e:pexp) (st: posi -> val) : (posi -> val) :=
