@@ -35,6 +35,7 @@ Definition rand:= bool.
 Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstring represenation of ps *)
               | Less (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
               | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *).
+Check mu.
 
 Inductive iota:= SeqInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
 
@@ -45,6 +46,11 @@ Inductive e := Next (p: pexp) | Had (b:list posi) | New (b:list posi)
 Inductive basis_val := Hval (b1: bool) (b2:bool) | Nval (b:bool) | Rval (n:rz_val).
 
 Definition eta_state : Type := posi -> basis_val.
+Fixpoint list_of_states (ps: list posi) (st: eta_state) : list basis_val :=
+  match ps with 
+  | [] => []
+  | h::t => (st h)::(list_of_states t st)
+  end.
 
 Definition pi32 := update (update allfalse 0 true) 1 true.
 
@@ -57,6 +63,7 @@ Definition ry_rotate (st:eta_state) (p:posi) (r:rz_val) (rmax:nat): eta_state :=
                   | Nval b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
                   |  Rval r1 => st[ p |-> Rval (angle_sum r1 r rmax)]
    end.
+   Check eta_state.
 
 Fixpoint sumOfBits (st:eta_state) (str: list posi) (n:(nat-> bool)): eta_state :=
   match str with 
@@ -65,8 +72,7 @@ Fixpoint sumOfBits (st:eta_state) (str: list posi) (n:(nat-> bool)): eta_state :
       | Hval b1 b2 => if b2 then st[p |-> ]
       | Nval b2
       | Rval r1 
-
-Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) : eta_state :=
+Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) (env: list (list posi * list posi * list posi)): eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
    | SeqInst a b => instr_sem rmax b (instr_sem rmax a st)
