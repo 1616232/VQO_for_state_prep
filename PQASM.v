@@ -72,8 +72,19 @@ Fixpoint permu (l : list posi) (f:nat -> bool) (G: list posi): nat->bool :=
   | [] => f
   | h::t => permu l (swap f (position h l) (position h G)) t
   end.
+Check 1 + 1.
+  Fixpoint push_to_st_helper (n: nat ) (G: list posi) (f' : nat -> bool) (st: eta_state): eta_state :=
+    match G with 
+    | [] => st
+    | h::t => push_to_st_helper (n + 1) t f' (eupdate st h (Nval (f' n)))
+    end.
 
-Fixpoint push_to_st (G: list posi) (f' : nat -> bool) (st: eta_state) :=
+Definition push_to_st (G: list posi) (f' : nat -> bool) (st: eta_state): eta_state :=
+  match G with 
+  | [] => st
+  | h::t => push_to_st_helper 2 t f' (eupdate st h (Nval (f' 1)))
+  end.
+
 
 Definition pi32 := update (update allfalse 0 true) 1 true.
 
