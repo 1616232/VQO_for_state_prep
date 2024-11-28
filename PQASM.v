@@ -52,6 +52,27 @@ Fixpoint list_of_states (ps: list posi) (st: eta_state) : list basis_val :=
   | h::t => (st h)::(list_of_states t st)
   end.
 
+Definition mu_sem (add_n :(nat->bool)->nat->bool) (n:(nat-> bool)): (nat-> bool) := add_n n.
+
+Fixpoint position (p: posi) (l : list posi) : nat := 
+  match l with 
+  | [] => (0)
+  | h::t => match (posi_eq h p) with 
+            | true =>  1
+            | false =>  1 + (position p t)
+            end
+  end.
+
+Fixpoint swap (h: posi) (a: list posi) (b: list posi)
+
+Definition permu (l : list posi) (f:nat -> bool) (G: list posi): nat->bool :=
+  match G with 
+  | [] => []
+  | h::t => swap h position h l position 
+  end.
+
+Fixpoint push_to_st (G: list posi) (f' : nat -> bool) (st: eta_state) :=
+  
 Definition pi32 := update (update allfalse 0 true) 1 true.
 
 Definition angle_sum (f g:rz_val) (rmax:nat) := cut_n (sumfb false f g) rmax.
