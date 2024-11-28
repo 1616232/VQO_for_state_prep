@@ -10,6 +10,7 @@ Require Import Classical_Prop.
 Require Import OQASM.
 Require Import Coq.QArith.QArith.
 Import Nat (eqb).
+Import Coq.FSets.FMapList.
 From Coq Require Import BinaryString.
 (**********************)
 (** Unitary Programs **)
@@ -63,16 +64,17 @@ Fixpoint position (p: posi) (l : list posi) : nat :=
             end
   end.
 
-Fixpoint swap (h: posi) (a: list posi) (b: list posi)
+Definition swap (f:nat -> bool) (x: nat) (y: nat): nat->bool :=
+  fun k => if eqb k x then f y else if eqb k y then f x else f k.
 
-Definition permu (l : list posi) (f:nat -> bool) (G: list posi): nat->bool :=
+Definition permu (l : list posi) (f:nat -> bool) (G: list posi) (st: eta_state): nat->bool :=
   match G with 
   | [] => []
-  | h::t => swap h position h l position 
+  | h::t => permu l f g swap h l g position h l position h G.
   end.
 
 Fixpoint push_to_st (G: list posi) (f' : nat -> bool) (st: eta_state) :=
-  
+
 Definition pi32 := update (update allfalse 0 true) 1 true.
 
 Definition angle_sum (f g:rz_val) (rmax:nat) := cut_n (sumfb false f g) rmax.
