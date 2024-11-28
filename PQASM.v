@@ -67,10 +67,10 @@ Fixpoint position (p: posi) (l : list posi) : nat :=
 Definition swap (f:nat -> bool) (x: nat) (y: nat): nat->bool :=
   fun k => if eqb k x then f y else if eqb k y then f x else f k.
 
-Definition permu (l : list posi) (f:nat -> bool) (G: list posi) (st: eta_state): nat->bool :=
+Fixpoint permu (l : list posi) (f:nat -> bool) (G: list posi): nat->bool :=
   match G with 
-  | [] => []
-  | h::t => permu l f g swap h l g position h l position h G.
+  | [] => f
+  | h::t => permu l (swap f (position h l) (position h G)) t
   end.
 
 Fixpoint push_to_st (G: list posi) (f' : nat -> bool) (st: eta_state) :=
