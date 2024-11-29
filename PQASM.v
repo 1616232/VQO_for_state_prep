@@ -40,8 +40,13 @@ Check mu.
 
 Inductive iota:= ISeq (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
 
+Notation "e0 ; e1" := (ISeq e0 e1) (at level 50) : exp_scope.
+
 Inductive exp := Next (p: iota) | Had (b:list posi) | New (b:list posi) 
 | ESeq (k: exp) (m: exp) | Meas (x:var) (qs:list posi) (e1:exp) | IFa (k: cbexp) (op1: exp) (op2: exp).
+
+Coercion Next : iota >-> exp.
+Notation "e0 [;] e1" := (ESeq e0 e1) (at level 50) : exp_scope.
 
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
 Inductive basis_val := Hval (b1: bool) (b2:bool) | Nval (b:bool) | Rval (n:rz_val).
