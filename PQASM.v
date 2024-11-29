@@ -7,11 +7,12 @@ Require Import QPE.
 Require Import BasicUtility.
 Require Import MathSpec.
 Require Import Classical_Prop.
-Require Import OQASM.
-Require Import Coq.QArith.QArith.
+(*Require Import OQASM.
+Require Import Coq.QArith.QArith.*)
 Import Nat (eqb).
-Import Coq.FSets.FMapList.
+(*Import Coq.FSets.FMapList.*)
 From Coq Require Import BinaryString.
+From Coq Require Import Lists.ListSet.
 (**********************)
 (** Unitary Programs **)
 (**********************)
@@ -21,27 +22,26 @@ Delimit Scope exp_scope with expScope.
 Local Open Scope exp_scope.
 Local Open Scope nat_scope.
 
-Inductive pexp := Oexp (e:exp) | H (p:posi) | PSeq (s1:pexp) (s2:pexp).
+Inductive aexp := BA (x:var) | Num (n:nat -> bool) | APlus (e1:aexp) (e2:aexp) | AMult (e1:aexp) (e2:aexp).
 
-Notation "p1 [;] p2" := (PSeq p1 p2) (at level 50) : exp_scope.
+(* Coercion means that in a function or an inductive relation, var can be viewed as aexp. *)
+Coercion BA : var >-> aexp.
 
-Fixpoint inv_pexp p :=
-  match p with
-  | Oexp a => Oexp (inv_exp a)
-  | H p => H p
-  | PSeq p1 p2 => inv_pexp p2 [;] inv_pexp p1
-   end.
+(* Turnning prefix notation to mixfix notation. *)
+Notation "e0 [+] e1" := (APlus e0 e1) (at level 50) : exp_scope.
+Notation "e0 [*] e1" := (AMult e0 e1) (at level 50) : exp_scope.
 
-Definition rand:= bool.
+Inductive cbexp := CEq (x:aexp) (y:aexp) | CLt (x:aexp) (y:aexp).
+
 Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstring represenation of ps *)
               | Less (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
               | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *).
 Check mu.
 
-Inductive iota:= SeqInst (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
+Inductive iota:= ISeq (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
 
-Inductive e := Next (p: pexp) | Had (b:list posi) | New (b:list posi) 
-| AddProg (k: iota) (m: iota)| Meas (x:list posi) | IFa (k: rand) (op1: e) (op2: e).
+Inductive exp := Next (p: iota) | Had (b:list posi) | New (b:list posi) 
+| ESeq (k: exp) (m: exp) | Meas (x:var) (qs:list posi) (e1:exp) | IFa (k: cbexp) (op1: exp) (op2: exp).
 
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
 Inductive basis_val := Hval (b1: bool) (b2:bool) | Nval (b:bool) | Rval (n:rz_val).
@@ -99,6 +99,79 @@ Definition ry_rotate (st:eta_state) (p:posi) (r:rz_val) (rmax:nat): eta_state :=
    end.
    Check eta_state.
 
+
+(*The following contains helper functions for records. *)
+Definition qrecord : Type := (list posi * list posi * list posi).
+
+Definition had (q:qrecord) := fst (fst q).
+
+Definition nor (q:qrecord) := snd (fst q).
+
+Definition rot (q:qrecord) := snd q.
+
+Definition nor_sub (q:qrecord) (l:list posi) := (had q, l, rot q).
+
+Definition had_sub (q:qrecord) (l:list posi) := (l, nor q, rot q).
+
+Definition rec_union (q:qrecord) := (had q) ++ (nor q) ++ (rot q).
+
+Definition flat_union (q:list qrecord) := fold_left (fun a b => a++rec_union b) q nil.
+
+Definition set_inter_posi := set_inter posi_eq_dec.
+
+Definition set_diff_posi := set_diff posi_eq_dec.
+
+Definition qrecord_diff (q:qrecord) (l:list posi) := (set_diff_posi (had q) l, set_diff_posi (nor q) l, set_diff_posi (rot q) l).
+
+(* Defining typing rules here. *)
+
+(* Defining the inductive relation for disjoint. *)
+Inductive disjoint : list posi -> Prop :=
+   dis_empty : disjoint nil
+  | dis_many : forall q qs, ~ In q qs -> disjoint qs -> disjoint (q::qs). 
+
+(* subset definition. May turn it into bool type function. *)
+Inductive sublist : list posi -> list posi -> Prop :=
+   sublist_empty : forall qs, sublist nil qs
+ | sublist_many : forall q qs1 qs2, In q qs2 -> sublist qs1 qs2 -> sublist (q::qs1) qs2.
+
+
+Inductive type_aexp : list var -> aexp -> Prop :=
+   | ba_type : forall env x, In x env -> type_aexp env x
+   | num_type : forall env n, type_aexp env (Num n)
+   | plus_type : forall env e1 e2, type_aexp env e1 -> type_aexp env e2 -> type_aexp env (APlus e1 e2)
+   | mult_type : forall env e1 e2, type_aexp env e1 -> type_aexp env e2 -> type_aexp env (AMult e1 e2).
+
+Inductive type_cbexp : list var -> cbexp -> Prop :=
+  | ceq_type : forall env a b, type_aexp env a -> type_aexp env b -> type_cbexp env (CEq a b)
+  | clt_type : forall env a b, type_aexp env a -> type_aexp env b -> type_cbexp env (CLt a b).
+
+Inductive type_mu : list posi -> mu -> Prop :=
+   type_add : forall qs v, disjoint qs -> type_mu qs (Add qs v)
+ | type_less: forall qs q v, disjoint (q::qs) -> type_mu (q::qs) (Less qs v q)
+ | type_eq:   forall qs q v, disjoint (q::qs) -> type_mu (q::qs) (Equal qs v q). 
+
+
+Inductive ityping : list qrecord -> iota -> list qrecord -> Prop :=
+   ry_nor : forall p r T, ityping ((nil,([p]),nil)::T) (Ry p r) ((nil,nil,([p]))::T)
+ | ry_rot : forall th T p r ps, rot th = (p::ps) -> ityping (th::T) (Ry p r) (th::T)
+ | mu_nor : forall qs mu th T, type_mu qs mu -> sublist qs (nor th) -> ityping (th::T) (Ora mu) (th::T)
+ | cu_nor : forall q qs ia th T, nor th = (q::qs) -> ityping ((nor_sub th qs)::T) ia ((nor_sub th qs)::T) -> ityping (th::T) (ICU q ia) (th::T)
+ | cu_had : forall q qs ia th T, nor th = (q::qs) -> ityping ((had_sub th qs)::T) ia ((had_sub th qs)::T) -> ityping (th::T) (ICU q ia) (th::T)
+ | iseq_ty : forall qa qb T1 T2 T3, ityping T1 qa T2 -> ityping T2 qb T3 -> ityping T1 (ISeq qa qb) T2.
+
+
+Inductive etype : list var -> list qrecord -> exp -> list qrecord -> Prop :=
+   next_ty : forall s p T, ityping T p T -> etype s T (Next p) T
+ | had_ty : forall qs s T, etype s ((nil,qs,nil)::T) (Had qs) ((qs,nil,nil)::T)
+ | new_ty : forall qs s T, disjoint qs -> set_inter_posi qs (flat_union T) = nil -> etype s T (New qs) ((nil,qs,nil)::T)
+ | eseq_ty : forall s qa qb T1 T2 T3, etype s T1 qa T2 -> etype s T2 qb T3 -> etype s T1 (ESeq qa qb) T2
+ | eif_ty : forall b e1 e2 s T T1, type_cbexp s b -> etype s T e1 T1 -> etype s T e2 T1 -> etype s T (IFa b e1 e2) T
+ | mea_ty : forall x qs e s th T T1, sublist qs (rec_union th) -> etype (x::s) ((qrecord_diff th qs)::T) e T1 -> etype s (th::T) (Meas x  qs e) T1.
+
+
+
+(* Semantic Functions. *)
 Fixpoint sumOfBits (st:eta_state) (str: list posi) (n:(nat-> bool)): eta_state :=
   match str with 
   | [] => st
