@@ -455,7 +455,7 @@ Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
  | iota_sem : forall phi e, prog_sem (phi, Next e) 1 (app_inst rmax phi e, ESKIP)
  | had_sem : forall phi bl, prog_sem (phi, Had bl) 1 (apply_hads phi bl, ESKIP)
  | mea_sem : forall phi x qs e bl phi' rv, apply_mea rmax phi qs bl = (phi',rv) 
-           -> prog_sem (phi, Meas x qs e) 1 (phi', exp_subst_c e x (a_nat2fb bl (length qs))).
+           -> prog_sem (phi, Meas x qs e) rv (phi', exp_subst_c e x (a_nat2fb bl (length qs))).
 
 (*
 Add [q1,q2] 1
