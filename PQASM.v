@@ -268,7 +268,7 @@ Fixpoint mu_eq_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (
           end.    
   Definition mu_eq (ps: list posi) (n:(nat-> bool)) (st: eta_state): bool := 
     mu_eq_helper (rev ps) n st (length ps).
-    
+
     Definition mu_sem (m: mu) (st: eta_state):= 
       match m with 
       | Add ps n => mu_addition ps n st
@@ -286,11 +286,16 @@ Fixpoint mu_eq_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) (env: list (list posi * list posi * list posi)): eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
-   | SeqInst a b => instr_sem rmax b (instr_sem rmax a st)
+   | ISeq a b => instr_sem rmax b (instr_sem rmax a st env) env
    | Ora m => mu_sem m
-  | ICU x y => match x with 
-   | 0 -> 
-   | 1 -> instr_sem rmax y st
+  | ICU x y => match st x with 
+      | Hval l j =>  st
+      | Rval r =>  st 
+      | Nval j => match j with 
+          |  true => instr_sem rmax y st env
+          | false => st
+          end
+        end  
    end. 
 
 (*
