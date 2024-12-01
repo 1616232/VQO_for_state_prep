@@ -358,10 +358,10 @@ match i with
     | pe_seq : forall env env' env'' e1 e2, well_typed_pexp aenv env e1 env' -> 
                  well_typed_pexp aenv env' e2 env'' -> well_typed_pexp aenv env (e1 [;] e2) env''. *)
 
-Inductive pexp_WF (aenv:var -> nat): pexp -> Prop :=
+(* Inductive pexp_WF (aenv:var -> nat): pexp -> Prop :=
      | oexp_WF : forall e, exp_WF aenv e -> pexp_WF aenv (Oexp e)
      | h_wf : forall p, snd p < aenv (fst p) -> pexp_WF aenv (H p)
-      | pseq_wf : forall e1 e2, pexp_WF aenv e1 -> pexp_WF aenv  e2 -> pexp_WF aenv  (PSeq e1 e2).
+      | pseq_wf : forall e1 e2, pexp_WF aenv e1 -> pexp_WF aenv  e2 -> pexp_WF aenv  (PSeq e1 e2). *)
 
 (*
                | H p => st[p |-> up_h (st p)]
@@ -389,22 +389,22 @@ Inductive pexp_WF (aenv:var -> nat): pexp -> Prop :=
 (*  Define approximate QFT in the Had basis by the extended type system. In this type system, 
     once a value is in Had basis,
      it will never be applied back to Nor domain, so that we can define more SR gates. *)
-Fixpoint many_CR (x:var) (b:nat) (n : nat) (i:nat) :=
+(* Fixpoint many_CR (x:var) (b:nat) (n : nat) (i:nat) :=
   match n with
   | 0 | 1 => SKIP (x,n)
   | S m  => if b <=? m then (many_CR x b m i ; (CU (x,m+i) (RZ n (x,i)))) else SKIP (x,m)
-  end.
+  end. *)
 
 (* approximate QFT for reducing b ending qubits. *)
-Fixpoint appx_QFT (x:var) (b:nat) (n : nat) (size:nat) :=
+(* Fixpoint appx_QFT (x:var) (b:nat) (n : nat) (size:nat) :=
   match n with
   | 0    => Oexp (SKIP (x,n))
   | S m => if b <=? m then ((appx_QFT x b m size)) [;] (H (x,m))
                     [;] (Oexp (many_CR x b (size-m) m)) else Oexp (SKIP (x,m))
-  end.
+  end. *)
 
 (* Match the K graph by LV decomposition, the following define the L part.  (H ; R(alpha)); H  |x> -> Sigma|y>. *)
-Fixpoint half_k_graph (x:var) (r:nat) (size:nat) :=
+(* Fixpoint half_k_graph (x:var) (r:nat) (size:nat) :=
    match size with 0 => (Oexp (SKIP (x,0)))
           | S m => (H (x,m)) [;] (Oexp (RZ r (x,m))) [;] half_k_graph x r m
-   end.
+   end. *)
