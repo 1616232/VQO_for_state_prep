@@ -275,7 +275,7 @@ Fixpoint mu_eq_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (
       | Less ps n p => fun k => mu_less ps n st
       | Equal ps n p => fun k => mu_eq ps n st
       end.
-
+Check mu_sem.
 (* Fixpoint sumOfBits (st:eta_state) (str: list posi) (n:(nat-> bool)): eta_state :=
   match str with 
   | [] => st
@@ -283,11 +283,13 @@ Fixpoint mu_eq_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (
       | Hval b1 b2 => if b2 then st[p |-> ]
       | Nval b2
       | Rval r1  *)
+Definition map_bitstring_to_eta_state (n: (nat->bool)): eta_state:=
+fun (p: posi) => Nval (n (snd p)).
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) (env: list (list posi * list posi * list posi)): eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
    | ISeq a b => instr_sem rmax b (instr_sem rmax a st env) env
-   | Ora m => mu_sem m
+   | Ora m => map_bitstring_to_eta_state (mu_sem m st)
   | ICU x y => match st x with 
       | Hval l j =>  st
       | Rval r =>  st 
