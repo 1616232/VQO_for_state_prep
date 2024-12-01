@@ -22,7 +22,7 @@ Delimit Scope exp_scope with expScope.
 Local Open Scope exp_scope.
 Local Open Scope nat_scope.
 
-Inductive aexp := BA (x:var) | Num (n:nat -> bool) | APlus (e1:aexp) (e2:aexp) | AMult (e1:aexp) (e2:aexp).
+Inductive aexp := BA (x:var) | Num (n:nat) | APlus (e1:aexp) (e2:aexp) | AMult (e1:aexp) (e2:aexp).
 
 (* Coercion means that in a function or an inductive relation, var can be viewed as aexp. *)
 Coercion BA : var >-> aexp.
@@ -42,14 +42,14 @@ Inductive iota:= ISeq (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | 
 
 Notation "e0 ; e1" := (ISeq e0 e1) (at level 50) : exp_scope.
 
-Inductive exp := Next (p: iota) | Had (b:list posi) | New (b:list posi) 
+Inductive exp := ESKIP | Next (p: iota) | Had (b:list posi) | New (b:list posi) 
 | ESeq (k: exp) (m: exp) | Meas (x:var) (qs:list posi) (e1:exp) | IFa (k: cbexp) (op1: exp) (op2: exp).
 
 Coercion Next : iota >-> exp.
 Notation "e0 [;] e1" := (ESeq e0 e1) (at level 50) : exp_scope.
 
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
-Inductive basis_val := Hval (b1: bool) (b2:bool) | Nval (b:bool) | Rval (n:rz_val).
+Inductive basis_val := Nval (b:bool) | Rval (n:rz_val).
 
 Definition eta_state : Type := posi -> basis_val.
 Fixpoint list_of_states (ps: list posi) (st: eta_state) : list basis_val :=
@@ -96,8 +96,7 @@ Definition angle_sum (f g:rz_val) (rmax:nat) := cut_n (sumfb false f g) rmax.
 Definition angle_sub (f g: rz_val) (rmax:nat) := cut_n (sumfb false f (negatem rmax g)) rmax.
 
 Definition ry_rotate (st:eta_state) (p:posi) (r:rz_val) (rmax:nat): eta_state :=
-   match st p with Hval b1 b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
-                  | Nval b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
+   match st p with  Nval b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
                   |  Rval r1 => st[ p |-> Rval (angle_sum r1 r rmax)]
    end.
    Check eta_state.
@@ -220,7 +219,6 @@ Fixpoint posi_list_to_bitstring_helper (ps: list posi) (st: eta_state) (n: nat):
       |[] => false
       |a::b => match eqb k n with
           |true => match (st a) with 
-              |Hval a b =>  false
               | Rval r =>  false 
               | Nval b =>  b 
               end
@@ -239,7 +237,6 @@ Fixpoint mu_less_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state)
     | S k => match ps with 
           | [] => false
           |a::b => match (st a) with 
-          | Hval l j =>  false
           | Rval r =>  false 
           | Nval j => match ((bitstring n) && j) with 
               | true => mu_less_helper b bitstring st k
@@ -257,7 +254,6 @@ Fixpoint mu_eq_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (
     | S k => match ps with 
           | [] => true
           |a::b => match (st a) with 
-          | Hval l j =>  false
           | Rval r =>  false 
           | Nval j => match ((bitstring n) && j) with 
               | true => mu_eq_helper b bitstring st k
@@ -282,24 +278,184 @@ Fixpoint bitstring_to_eta (f:nat -> bool) (l:list posi) (size:nat): eta_state :=
              | x::xs => (fun y => if (posi_eq x y) then Nval (f (size - length (x::xs))) else (bitstring_to_eta f xs size) y)
   end.
         
-Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) (env: list (list posi * list posi * list posi)): eta_state :=
+Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state): eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
-   | ISeq a b => instr_sem rmax b (instr_sem rmax a st env) env
+   | ISeq a b => instr_sem rmax b (instr_sem rmax a st)
    | Ora m => match m with 
         | Add ps n => bitstring_to_eta (mu_sem m st) ps (length ps)
         | Less ps n p => bitstring_to_eta (mu_sem m st) ps (length ps)
         | Equal ps n p => bitstring_to_eta (mu_sem m st) ps (length ps)
         end
   | ICU x y => match st x with 
-      | Hval l j =>  st
       | Rval r =>  st 
       | Nval j => match j with 
-          |  true => instr_sem rmax y st env
+          |  true => instr_sem rmax y st
           | false => st
           end
         end  
-   end. 
+   end.
+
+
+(* Program Semantics. *)
+Definition state : Type := nat * (nat -> R * eta_state).
+Definition config : Type := state * exp.
+Definition bottom_state : nat -> R * eta_state := fun i => (R0, fun q => Nval false).
+
+(* simp boolean expressions. *)
+Fixpoint simp_aexp (e:aexp) :=
+ match e with Num n => Some n
+            | e1 [+] e2 => match simp_aexp e1
+                                    with None => None
+                                       | Some v1 => match simp_aexp e2 
+                                               with None => None
+                                                  | Some v2 => Some (v1 + v2)
+                                                    end
+                           end
+            | e1 [*] e2 => match simp_aexp e1
+                                    with None => None
+                                       | Some v1 => match simp_aexp e2 
+                                               with None => None
+                                                  | Some v2 => Some (v1 * v2)
+                                                    end
+                           end
+           | _ => None
+ end.
+
+Definition simp_bexp (e:cbexp) :=
+  match e with CEq a b => match simp_aexp a with Some v1 =>
+                                     match simp_aexp b with Some v2 => Some (v1 =? v2) | _ => None end 
+                                                 | _ => None end
+             | CLt a b => match simp_aexp a with Some v1 =>
+                                     match simp_aexp b with Some v2 => Some (v1 <? v2) | _ => None end 
+                                                 | _ => None end
+  end.
+
+(* add new qubits. *)
+Definition add_new_eta (s:eta_state) (q:posi) := s[q |-> Nval false].
+
+Fixpoint add_new_elem (n:nat) (s:nat -> R * eta_state) (q:posi) :=
+   match n with 0 => s
+              | S m => update (add_new_elem m s q) m (fst (s m), add_new_eta (snd (s m)) q)
+   end.
+
+Fixpoint add_new_list (n:nat) (s:nat -> R * eta_state) (q:list posi) :=
+  match q with nil => s
+             | x::xs => add_new_elem n (add_new_list n s xs) x
+  end.
+Definition add_new (s:state) (q:list posi) := (fst s, add_new_list (fst s) (snd s) q).
+
+Fixpoint app_inst' (rmax:nat) (n:nat) (s:nat -> R * eta_state) (e:iota) :=
+   match n with 0 => s
+             | S m => update (app_inst' rmax m s e) m (fst (s m), instr_sem rmax e (snd (s m)))
+   end.
+Definition app_inst (rmax:nat) (s:state) (e:iota) := (fst s, app_inst' rmax (fst s) (snd s) e).
+
+
+(* apply had operations. *)
+
+Definition single_had (s:R * eta_state) (q:posi) (b:bool) :=
+  match s with (phase,base) => 
+    match (base q) with Rval v => (phase, base)
+                      | Nval v =>
+                if b then 
+                  (if v then ((Rmult (Rdiv (Ropp 1) (sqrt(2))) phase):R, base[q |-> Nval b]) 
+                        else ((Rmult (Rdiv 1 (sqrt(2))) phase):R, base[q |-> Nval b]))
+                     else ((Rmult (Rdiv 1 (sqrt(2))) phase):R, base[q |-> Nval b])
+    end
+  end.
+
+Fixpoint add_had' (n size:nat) (s:nat -> R * eta_state) (q:posi) :=
+   match n with 0 => s
+              | S m => update (update (add_had' m size s q) m (single_had (s m) q false)) (size + m) (single_had (s m) q true)
+   end.
+Definition add_had (s:state) (q:posi) := (2 * fst s, add_had' (fst s) (fst s) (snd s) q).
+
+Fixpoint apply_hads (s:state) (qs : list posi) :=
+  match qs with nil => s
+              | x::xs => add_had (apply_hads s xs) x
+  end.
+
+Fixpoint turn_angle_r (rval :nat -> bool) (n:nat) (size:nat) : R :=
+   match n with 0 => (0:R)
+             | S m => (if (rval m) then (1/ (2^ (size - m))) else (0:R)) + turn_angle_r rval m size
+   end.
+Definition turn_angle (rval:nat -> bool) (n:nat) : R :=
+      turn_angle_r (fbrev n rval) n n.
+
+(* apply computational basis measurement operations. *)
+Fixpoint single_mea (rmax n:nat) (s:nat -> R * eta_state) (q:posi) (b:bool) :=
+  match n with 0 => (0, R0, bottom_state)
+             | S m => 
+    match single_mea rmax m s q b with (num, prob, new_s) =>
+       match (snd (s m)) q with Rval r => 
+         if b then (S num,Rplus prob (Rmult (sin (turn_angle r rmax)) ((fst (s m))^2)), update new_s m (s m))
+              else (S num,Rplus prob (Rmult (cos (turn_angle r rmax)) ((fst (s m))^2)), update new_s m (s m))
+                            | Nval b1 => 
+         if Bool.eqb b b1 then (S num, Rplus prob ((fst (s m))^2), update new_s m (s m))
+                    else (num, prob, new_s)
+       end
+    end
+  end.
+
+Fixpoint amp_reduce (n:nat) (s: nat -> R * eta_state) (r:R) :=
+   match n with 0 => s
+             | S m => update (amp_reduce m s r) m (Rdiv (fst (s m)) (sqrt r), snd (s m))
+   end.
+
+Definition move_1 (f : nat -> bool) := fun i => f (i + 1).
+
+Fixpoint apply_mea' (rmax:nat) (n:nat) (s:nat -> R * eta_state) (qs:list (posi * bool)) :=
+   match qs with nil => ((n,s),R1)
+               | (x,b)::xs => match apply_mea' rmax n s xs with ((new_n,new_s),re) =>
+                             match single_mea rmax new_n new_s x b with (na,ra,sa) =>
+                              ((na,amp_reduce na sa ra), Rmult re ra)
+                             end
+                          end
+    end.
+
+Fixpoint zip_b (qs:list posi) (bl: nat -> bool) :=
+    match qs with nil => nil
+                | x::xs => (x,bl 0)::(zip_b xs (move_1 bl))
+    end.
+
+Definition apply_mea (rmax:nat) (s:state) (qs:list posi) (bl:nat -> bool) : state * R :=
+   apply_mea' rmax (fst s) (snd s) (zip_b qs bl).
+
+Fixpoint aexp_subst_c (a:aexp) (x:var) (n:nat) :=
+  match a with BA y => if x =? y then Num n else BA y
+             | Num m => Num m
+             | APlus e1 e2 => APlus (aexp_subst_c e1 x n) (aexp_subst_c e2 x n)
+             | AMult e1 e2 => AMult (aexp_subst_c e1 x n) (aexp_subst_c e2 x n)
+  end.
+
+
+Definition bexp_subst_c (a:cbexp) (x:var) (n:nat) :=
+  match a with CEq e1 e2 => CEq (aexp_subst_c e1 x n) (aexp_subst_c e2 x n)
+             | CLt e1 e2 => CLt (aexp_subst_c e1 x n) (aexp_subst_c e2 x n)
+  end.
+
+Fixpoint exp_subst_c (a:exp) (x:var) (n:nat) :=
+  match a with ESKIP => ESKIP
+             | Next p => Next p
+             | Had b => Had b
+             | New b => New b
+             | ESeq e1 e2 => ESeq (exp_subst_c e1 x n) (exp_subst_c e2 x n)
+             | Meas y qs e => if x =? y then Meas y qs e else Meas y qs (exp_subst_c e x n)
+             | IFa b e1 e2 => IFa (bexp_subst_c b x n) (exp_subst_c e1 x n) (exp_subst_c e2 x n)
+  end.
+
+
+Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
+   seq_sem_1 : forall phi e,  prog_sem (phi, ESKIP [;] e) (1:R) (phi,e)
+ | seq_sem_2: forall phi phi' r e1 e1' e2, prog_sem (phi,e1) r (phi',e1') -> prog_sem (phi, e1 [;] e2) r (phi', e1' [;] e2)
+ | if_sem_1 : forall phi b e1 e2, simp_bexp b = Some true -> prog_sem (phi, IFa b e1 e2) 1 (phi, e1)
+ | if_sem_2 : forall phi b e1 e2, simp_bexp b = Some false -> prog_sem (phi, IFa b e1 e2) 1 (phi, e2)
+ | new_sem : forall phi bl, prog_sem (phi, New bl) 1 (add_new phi bl, ESKIP)
+ | iota_sem : forall phi e, prog_sem (phi, Next e) 1 (app_inst rmax phi e, ESKIP)
+ | had_sem : forall phi bl, prog_sem (phi, Had bl) 1 (apply_hads phi bl, ESKIP)
+ | mea_sem : forall phi x qs e bl phi' rv, apply_mea rmax phi qs bl = (phi',rv) 
+           -> prog_sem (phi, Meas x qs e) 1 (phi', exp_subst_c e x (a_nat2fb bl (length qs))).
 
 (*
 Add [q1,q2] 1

@@ -765,21 +765,6 @@ Definition type_cexp (benv:benv) (c:cexp) :=
                 do re2 <- type_factor benv y @ (meet_type re1 re2)
             | iseven x => type_factor_full benv C Nat x
    end.
-(*
-a_nat2fb is to turn a nat-> bool value to nat. 
-*)
-
-Definition a_nat2fb f n := natsum n (fun i => Nat.b2n (f i) * 2^i).
-
-Lemma a_nat2fb_scope : forall n f, a_nat2fb f n < 2^n.
-Proof.
-  induction n;intros;simpl.
-  unfold a_nat2fb. simpl. lia.
-  specialize (IHn f).
-  unfold a_nat2fb in *. simpl.
-  destruct (f n). simpl. lia.
-  simpl. lia.
-Qed.
 
 Definition is_q (t:typ) : bool := 
   match t with TArray Q _ _ | TNor Q _ => true

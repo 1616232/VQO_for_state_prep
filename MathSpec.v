@@ -1201,12 +1201,23 @@ Qed.
 Local Opaque carry.
 
 
-
 Fixpoint natsum n (f : nat -> nat) :=
   match n with
   | 0 => 0
   | S n' => f n' + natsum n' f
   end.
+
+Definition a_nat2fb f n := natsum n (fun i => Nat.b2n (f i) * 2^i).
+
+Lemma a_nat2fb_scope : forall n f, a_nat2fb f n < 2^n.
+Proof.
+  induction n;intros;simpl.
+  unfold a_nat2fb. simpl. lia.
+  specialize (IHn f).
+  unfold a_nat2fb in *. simpl.
+  destruct (f n). simpl. lia.
+  simpl. lia.
+Qed.
 
 Lemma natsum_mod :
   forall n f M,
