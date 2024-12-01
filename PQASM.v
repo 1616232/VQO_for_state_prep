@@ -283,13 +283,22 @@ Check mu_sem.
       | Hval b1 b2 => if b2 then st[p |-> ]
       | Nval b2
       | Rval r1  *)
-Definition map_bitstring_to_eta_state (n: (nat->bool)): eta_state:=
-fun (p: posi) => Nval (n (snd p)).
+(* Definition map_bitstring_to_eta_state (n: (nat->bool)): eta_state:=
+fun (p: posi) => Nval (n (snd p)). *)
+Fixpoint bitstring_to_eta (f:nat -> bool) (l:list posi) (size:nat): eta_state :=
+  match l with nil => (fun posi => Nval false)
+             | x::xs => (fun y => if (posi_eq x y) then Nval (f (size - length (x::xs))) else (bitstring_to_eta f xs size) y)
+  end.
+        (* =? here means posi_eq , see basic_utility.v *)
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state) (env: list (list posi * list posi * list posi)): eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
    | ISeq a b => instr_sem rmax b (instr_sem rmax a st env) env
-   | Ora m => map_bitstring_to_eta_state (mu_sem m st)
+   | Ora m => match m with 
+        | Add ps n => bitstring_to_eta (mu_sem m st) ps (length ps)
+        | Less ps n p => bitstring_to_eta (mu_sem m st) ps (length ps)
+        | Equal ps n p => bitstring_to_eta (mu_sem m st) ps (length ps)
+        end
   | ICU x y => match st x with 
       | Hval l j =>  st
       | Rval r =>  st 
