@@ -7,6 +7,7 @@ Require Import CLArith.
 Require Import RZArith.
 Require Import OracleExample.
 Require Import ExtrOQASM.
+Require Import PQASM.
 
 (* Standard utilities for bools, options, etc. *)
 Require Coq.extraction.ExtrOcamlBasic.
@@ -38,7 +39,7 @@ Extract Constant id_nat => "fun x : int -> x". (* add type annotation *)
 
 (* Perform extraction *)
 Separate Extraction
-    OQASM.exp_sem
+    PQASM.instr_sem
     Testing.exp_sem
     (* OQASM Toffoli-based modular multiplier *)
     ExtrOQASM.trans_modmult_rev
