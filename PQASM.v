@@ -36,7 +36,6 @@ Inductive cbexp := CEq (x:aexp) (y:aexp) | CLt (x:aexp) (y:aexp).
 Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstring represenation of ps *)
               | Less (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
               | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *).
-Check mu.
 
 Inductive iota:= ISeq (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
 
@@ -66,7 +65,6 @@ Fixpoint position (p: posi) (l : list posi) : nat :=
             | false =>  1 + (position p t)
             end
   end.
-Check length.  
 
 Definition swap (f:nat -> bool) (x: nat) (y: nat): nat->bool :=
   fun k => if eqb k x then f y else if eqb k y then f x else f k.
@@ -76,7 +74,7 @@ Fixpoint permu (l : list posi) (f:nat -> bool) (G: list posi): nat->bool :=
   | [] => f
   | h::t => permu l (swap f (position h l) (position h G)) t
   end.
-Check 1 + 1.
+
   Fixpoint push_to_st_helper (n: nat ) (G: list posi) (f' : nat -> bool) (st: eta_state): eta_state :=
     match G with 
     | [] => st
@@ -99,8 +97,6 @@ Definition ry_rotate (st:eta_state) (p:posi) (r:rz_val) (rmax:nat): eta_state :=
    match st p with  Nval b2 => if b2 then st[ p |-> Rval (angle_sub pi32 r rmax) ] else st[ p |-> Rval r]
                   |  Rval r1 => st[ p |-> Rval (angle_sum r1 r rmax)]
    end.
-   Check eta_state.
-
 
 (*The following contains helper functions for records. *)
 Definition qrecord : Type := (list posi * list posi * list posi).
@@ -230,7 +226,7 @@ Definition posi_list_to_bitstring (ps: list posi) (st: eta_state): (nat-> bool) 
     
 Definition mu_addition (ps: list posi) (n:(nat-> bool)) (st: eta_state): (nat-> bool) :=
   sumfb false (posi_list_to_bitstring ps st) n.
-Check rev.
+
 Fixpoint mu_less_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (n: nat) : bool :=
   match n with 
     | 0 => false
@@ -238,13 +234,12 @@ Fixpoint mu_less_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state)
           | [] => false
           |a::b => match (st a) with 
           | Rval r =>  false 
-          | Nval j => match ((bitstring n) && j) with 
-              | true => mu_less_helper b bitstring st k
-              | false => (bitstring n)
-              end
+          | Nval j => if ((bitstring n) && j)
+          then (mu_less_helper b bitstring st k)
+          else (bitstring n)
             end
           end
-          end.    
+      end.    
 Definition mu_less (ps: list posi) (n:(nat-> bool)) (st: eta_state): bool := 
   mu_less_helper (rev ps) n st (length ps).
 
@@ -252,50 +247,38 @@ Fixpoint mu_eq_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (
   match n with 
     | 0 => false
     | S k => match ps with 
-          | [] => true
-          |a::b => match (st a) with 
-          | Rval r =>  false 
-          | Nval j => match ((bitstring n) && j) with 
-              | true => mu_eq_helper b bitstring st k
-              | false => false
-              end
-            end
-          end
-          end.    
+      | [] => true
+      |a::b => match (st a) with 
+        | Rval r =>  false 
+        | Nval j => if ((bitstring n) && j) 
+        then mu_eq_helper b bitstring st k
+        else false  
+        end
+    end
+  end.    
   Definition mu_eq (ps: list posi) (n:(nat-> bool)) (st: eta_state): bool := 
     mu_eq_helper (rev ps) n st (length ps).
-
-    Definition mu_sem (m: mu) (st: eta_state):= 
-      match m with 
-      | Add ps n => mu_addition ps n st
-      | Less ps n p => fun k => mu_less ps n st
-      | Equal ps n p => fun k => mu_eq ps n st
-      end.
-Check mu_sem.
 
 Fixpoint bitstring_to_eta (f:nat -> bool) (l:list posi) (size:nat): eta_state :=
   match l with nil => (fun posi => Nval false)
              | x::xs => (fun y => if (posi_eq x y) then Nval (f (size - length (x::xs))) else (bitstring_to_eta f xs size) y)
   end.
-        
+Definition mu_handling (m: mu) (st: eta_state) : eta_state :=
+  match m with 
+  | Add ps n => bitstring_to_eta (mu_addition ps n st) ps (length ps)
+  | Less ps n p => st[ p|-> Nval (mu_less ps n st)]
+  | Equal ps n p => st[ p|-> Nval (mu_eq ps n st)]
+  end.
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state): eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
    | ISeq a b => instr_sem rmax b (instr_sem rmax a st)
-   | Ora m => match m with 
-        | Add ps n => bitstring_to_eta (mu_sem m st) ps (length ps)
-        | Less ps n p => bitstring_to_eta (mu_sem m st) ps (length ps)
-        | Equal ps n p => bitstring_to_eta (mu_sem m st) ps (length ps)
-        end
+   | Ora m => mu_handling m st
   | ICU x y => match st x with 
       | Rval r =>  st 
-      | Nval j => match j with 
-          |  true => instr_sem rmax y st
-          | false => st
-          end
+      | Nval j => if j then instr_sem rmax y st else st
         end  
    end.
-
 
 (* Program Semantics. *)
 Definition state : Type := nat * (nat -> R * eta_state).
