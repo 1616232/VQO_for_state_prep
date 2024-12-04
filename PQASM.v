@@ -439,6 +439,27 @@ Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
  | had_sem : forall phi bl, prog_sem (phi, Had bl) 1 (apply_hads phi bl, ESKIP)
  | mea_sem : forall phi x qs e bl phi' rv, apply_mea rmax phi qs bl = (phi',rv) 
            -> prog_sem (phi, Meas x qs e) rv (phi', exp_subst_c e x (a_nat2fb bl (length qs))).
+   
+
+(* progress theorem *)
+Lemma type_progress : 
+    forall rmax aenv T T' phi e, etype aenv T e T' 
+          -> exists r phi' e', @prog_sem rmax (phi,e) r (phi',e').
+Proof.
+Admitted.
+
+
+(* type preservation. *)
+(* We might need to have some theorem to show the relationship between phi and phi'. *)
+Definition aenv_consist (aenv aenv': list var) := forall x, In x aenv -> In x aenv'.
+
+
+Lemma type_preservation : 
+    forall rmax aenv T T' phi phi' e e' r, etype aenv T e T' -> @prog_sem rmax (phi,e) r (phi',e')
+            -> exists aenv' T1 T2, etype aenv' T1 e' T2 /\ rec_eq T' T2.
+Proof.
+Admitted.
+
 
 (*
 Add [q1,q2] 1
