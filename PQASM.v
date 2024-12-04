@@ -450,13 +450,21 @@ Admitted.
 
 
 (* type preservation. *)
-(* We might need to have some theorem to show the relationship between phi and phi'. *)
 Definition aenv_consist (aenv aenv': list var) := forall x, In x aenv -> In x aenv'.
+
+Definition nor_consist (s: list posi) (phi: state) :=
+  forall i, i < (fst phi) -> forall p, In p s -> exists v, (snd ((snd phi) i)) p = Nval v.
+
+Definition rot_consist (s: list posi) (phi: state) :=
+  forall i, i < (fst phi) -> forall p, In p s -> exists v, (snd ((snd phi) i)) p = Rval v.
+
+Definition type_consist (T:list qrecord) (phi:state) :=
+  forall s, In s T -> nor_consist (had s) phi /\ nor_consist (nor s) phi /\ rot_consist (rot s) phi.
 
 
 Lemma type_preservation : 
-    forall rmax aenv T T' phi phi' e e' r, etype aenv T e T' -> @prog_sem rmax (phi,e) r (phi',e')
-            -> exists aenv' T1 T2, etype aenv' T1 e' T2 /\ rec_eq T' T2.
+    forall rmax aenv T T' phi phi' e e' r, etype aenv T e T' -> @prog_sem rmax (phi,e) r (phi',e') -> type_consist T phi
+            -> exists aenv' T1 T2, etype aenv' T1 e' T2 /\ rec_eq T' T2 /\ type_consist T2 phi'.
 Proof.
 Admitted.
 
