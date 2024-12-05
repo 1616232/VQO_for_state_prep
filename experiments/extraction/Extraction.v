@@ -40,6 +40,7 @@ Extract Constant id_nat => "fun x : int -> x". (* add type annotation *)
 (* Perform extraction *)
 Separate Extraction
     PQASM.instr_sem
+    PQASM.exp
     Testing.exp_sem
     (* OQASM Toffoli-based modular multiplier *)
     ExtrOQASM.trans_modmult_rev

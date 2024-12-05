@@ -428,7 +428,6 @@ Fixpoint exp_subst_c (a:exp) (x:var) (n:nat) :=
              | IFa b e1 e2 => IFa (bexp_subst_c b x n) (exp_subst_c e1 x n) (exp_subst_c e2 x n)
   end.
 
-
 Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
    seq_sem_1 : forall phi e,  prog_sem (phi, ESKIP [;] e) (1:R) (phi,e)
  | seq_sem_2: forall phi phi' r e1 e1' e2, prog_sem (phi,e1) r (phi',e1') -> prog_sem (phi, e1 [;] e2) r (phi', e1' [;] e2)
