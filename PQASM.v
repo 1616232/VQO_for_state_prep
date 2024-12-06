@@ -39,6 +39,7 @@ Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstr
 
 Inductive iota:= ISeq (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
 
+Coercion Ora : mu >-> iota.
 Notation "e0 ; e1" := (ISeq e0 e1) (at level 50) : exp_scope.
 
 Inductive exp := ESKIP | Next (p: iota) | Had (b:list posi) | New (b:list posi) 
@@ -46,6 +47,26 @@ Inductive exp := ESKIP | Next (p: iota) | Had (b:list posi) | New (b:list posi)
 
 Coercion Next : iota >-> exp.
 Notation "e0 [;] e1" := (ESeq e0 e1) (at level 50) : exp_scope.
+
+(* Examples. We use the constant hard-code variable names below. *)
+Definition x_var : var := 0.
+Definition y_var : var := 1.
+Definition z_var : var := 2.
+
+Fixpoint lst_posi (n:nat) (x:var) :=
+   match n with 0 => nil | S m => (x,m)::(lst_posi m x) end.
+
+(* we prepare a superposition of m different basis-states, where n is the length of qubits in x_var. 
+  nat2fb turns a nat number to a bitstring. 
+  we define a function P for a one step process of the repeat-until-success.
+  In Ocaml, you can input a variable name for P, 
+ *)
+Definition uniform_state (n:nat) (m:nat) := 
+          fun P => New (lst_posi n x_var) [;] New ([(y_var,0)]) [;] Had (lst_posi n x_var)
+                             [;] Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
+
+Check uniform_state.
+
 
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
 Inductive basis_val := Nval (b:bool) | Rval (n:rz_val).
