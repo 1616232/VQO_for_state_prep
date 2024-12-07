@@ -470,7 +470,7 @@ Admitted.
 Fixpoint prog_sem (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
 | Next (p: iota) => instr_sem rmax p st
 | ESeq (k: exp) (m: exp) => prog_sem rmax k (prog_sem rmax m st)
-| ESKIP => 
+| ESKIP => st
 | Had (b:list posi) =>
 | New (b:list posi) =>
 | Meas (x:var) (qs:list posi) (e1:exp) =>
