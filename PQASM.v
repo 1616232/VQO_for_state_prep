@@ -467,6 +467,11 @@ Lemma type_progress :
 Proof.
 Admitted.
 
+Fixpoint cbexp_handler (c: cbexp): bool:=
+  |CEq x y =>
+  |CLt x y =>
+  end.
+
 Fixpoint prog_sem (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
 | Next p => instr_sem rmax p st
 | ESeq k m => prog_sem rmax k (prog_sem rmax m st)
