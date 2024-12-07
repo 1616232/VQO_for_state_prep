@@ -468,13 +468,13 @@ Proof.
 Admitted.
 
 Fixpoint prog_sem (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
-| Next (p: iota) => instr_sem rmax p st
-| ESeq (k: exp) (m: exp) => prog_sem rmax k (prog_sem rmax m st)
+| Next p => instr_sem rmax p st
+| ESeq k m => prog_sem rmax k (prog_sem rmax m st)
 | ESKIP => st
-| Had (b:list posi) =>
-| New (b:list posi) =>
-| Meas (x:var) (qs:list posi) (e1:exp) =>
-| IFa (k: cbexp) (op1: exp) (op2: exp)=>
+| Had b =>
+| New b =>
+| Meas x qs e1 =>
+| IFa k op1 op2=>
 end.
 
 
