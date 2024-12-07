@@ -460,13 +460,22 @@ Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
  | mea_sem : forall phi x qs e bl phi' rv, apply_mea rmax phi qs bl = (phi',rv) 
            -> prog_sem (phi, Meas x qs e) rv (phi', exp_subst_c e x (a_nat2fb bl (length qs))).
    
-
 (* progress theorem *)
 Lemma type_progress : 
     forall rmax aenv T T' phi e, etype aenv T e T' 
           -> exists r phi' e', @prog_sem rmax (phi,e) r (phi',e').
 Proof.
 Admitted.
+
+Fixpoint prog_sem (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
+| Next (p: iota) => instr_sem rmax p st
+| ESeq (k: exp) (m: exp) => prog_sem rmax k (prog_sem rmax m st)
+| ESKIP => 
+| Had (b:list posi) =>
+| New (b:list posi) =>
+| Meas (x:var) (qs:list posi) (e1:exp) =>
+| IFa (k: cbexp) (op1: exp) (op2: exp)=>
+end.
 
 
 (* type preservation. *)
