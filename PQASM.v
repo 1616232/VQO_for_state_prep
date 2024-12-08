@@ -55,7 +55,7 @@ Definition z_var : var := 2.
 
 Fixpoint lst_posi (n:nat) (x:var) :=
    match n with 0 => nil | S m => (x,m)::(lst_posi m x) end.
-
+(* Check lst_posi.  *)
 (* we prepare a superposition of m different basis-states, where n is the length of qubits in x_var. 
   nat2fb turns a nat number to a bitstring. 
   we define a function P for a one step process of the repeat-until-success.
@@ -65,7 +65,7 @@ Definition uniform_state (n:nat) (m:nat) :=
           fun P => New (lst_posi n x_var) [;] New ([(y_var,0)]) [;] Had (lst_posi n x_var)
                              [;] Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
 
-Check uniform_state.
+(* Check uniform_state. *)
 
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
 Inductive basis_val := Nval (b:bool) | Rval (n:rz_val).
@@ -329,7 +329,7 @@ Definition simp_bexp (e:cbexp) :=
                                      match simp_aexp b with Some v2 => Some (v1 <? v2) | _ => None end 
                                                  | _ => None end
   end.
-Check simp_bexp.
+(* Check simp_bexp. *)
 (* add new qubits. *)
 Definition add_new_eta (s:eta_state) (q:posi) := s[q |-> Nval false].
 
@@ -349,7 +349,6 @@ Fixpoint app_inst' (rmax:nat) (n:nat) (s:nat -> R * eta_state) (e:iota) :=
              | S m => update (app_inst' rmax m s e) m (fst (s m), instr_sem rmax e (snd (s m)))
    end.
 Definition app_inst (rmax:nat) (s:state) (e:iota) := (fst s, app_inst' rmax (fst s) (snd s) e).
-
 
 (* apply had operations. *)
 
@@ -374,7 +373,7 @@ Fixpoint apply_hads (s:state) (qs : list posi) :=
   match qs with nil => s
               | x::xs => add_had (apply_hads s xs) x
   end.
-  Check apply_hads.
+  (* Check apply_hads. *)
 
 Fixpoint turn_angle_r (rval :nat -> bool) (n:nat) (size:nat) : R :=
    match n with 0 => (0:R)
@@ -444,7 +443,7 @@ Fixpoint exp_subst_c (a:exp) (x:var) (n:nat) :=
              | Meas y qs e => if x =? y then Meas y qs e else Meas y qs (exp_subst_c e x n)
              | IFa b e1 e2 => IFa (bexp_subst_c b x n) (exp_subst_c e1 x n) (exp_subst_c e2 x n)
   end.
-Check exp_subst_c.
+(* Check exp_subst_c. *)
 Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
    seq_sem_1 : forall phi e,  prog_sem (phi, ESKIP [;] e) (1:R) (phi,e)
  | seq_sem_2: forall phi phi' r e1 e1' e2, prog_sem (phi,e1) r (phi',e1') -> prog_sem (phi, e1 [;] e2) r (phi', e1' [;] e2)
@@ -522,11 +521,34 @@ Definition exp_comparison (e1 e2: exp): bool :=
       | _ => false
       end              
   end.
+(* Definition exp_map_comparison (e1: (exp->exp)) (e2: (exp->exp)): bool:=
+(exp_comparison (e1 ESKIP) (e2 ESKIP))
+&& (exp_comparison (e1 IFa _ _ _) (e2 IFa)). *)
+Lemma exp_of_uniform_state: forall (m n: nat) (e1 e2 e3: exp), (exp_comparison (uniform_state m n e3) (ESeq e1 e2))=true.
+Proof. intros. unfold uniform_state. unfold exp_comparison.  reflexivity. Qed. 
 From QuickChick Require Import QuickChick.
-Conjecture uniform_state_prep_property: forall (m n: nat) (e: exp),
-exp_comparison ((uniform_state m n) e) ((uniform_state n m) e) = true.
+Module Test_prop. 
+Conjecture uniform_state_eskip_behavior: forall (m: nat) (n: nat),
+exp_comparison ((uniform_state m n) ESKIP) ((uniform_state n m) ESKIP) = true.
+(* Check uniform_state_eskip_behavior. *)
+Conjecture uniform_state_new_behavior: forall (m n o: nat) (x: var),
+exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) (New (lst_posi o x))) = true.
+(* Check uniform_state_new_behavior. *)
+Conjecture uniform_state_new_eskip_behavior: forall (m n o: nat) (x: var),
+exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) ESKIP) = true.
+End Test_prop.
+(* #[export] Instance shrinkExp : Shrink exp :=
+  {
+    shrink exp :=
+      match exp with
+      | ESKIP => [ ]
+      | Meas a b c => [ IFa a b c]
+      end
+  }. *)
 
-QuickChick (uniform_state_prep_property 40 30 ESKIP).
+QuickChick (Test_prop.uniform_state_eskip_behavior).
+QuickChick (Test_prop.uniform_state_new_behavior).
+QuickChick (Test_prop.uniform_state_new_eskip_behavior).
 (*
 Add [q1,q2] 1
 
