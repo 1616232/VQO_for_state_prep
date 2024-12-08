@@ -67,7 +67,6 @@ Definition uniform_state (n:nat) (m:nat) :=
 
 Check uniform_state.
 
-
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
 Inductive basis_val := Nval (b:bool) | Rval (n:rz_val).
 
@@ -154,7 +153,6 @@ Inductive sublist : list posi -> list posi -> Prop :=
    sublist_empty : forall qs, sublist nil qs
  | sublist_many : forall q qs1 qs2, In q qs2 -> sublist qs1 qs2 -> sublist (q::qs1) qs2.
 
-
 Inductive type_aexp : list var -> aexp -> Prop :=
    | ba_type : forall env x, In x env -> type_aexp env x
    | num_type : forall env n, type_aexp env (Num n)
@@ -170,14 +168,12 @@ Inductive type_mu : list posi -> mu -> Prop :=
  | type_less: forall qs q v, disjoint (q::qs) -> type_mu (q::qs) (Less qs v q)
  | type_eq:   forall qs q v, disjoint (q::qs) -> type_mu (q::qs) (Equal qs v q). 
 
-
 (* Equivalence Relations among records *)
 Inductive rec_eq : list qrecord -> list qrecord -> Prop :=
    join_eq : forall q1 q2 q3 q4 q5 q6 qs, rec_eq ((q1,q2,q3)::(q4,q5,q6)::qs) ((q1++q4,q2++q5,q3++q6)::qs)
  | nor_split_eq : forall q1 q2 qs, rec_eq ((nil,q1++q2,nil)::qs) ((nil,q1,nil)::(nil,q2,nil)::qs)
  | had_split_eq : forall q1 q2 qs, rec_eq ((q1++q2,nil,nil)::qs) ((q1,nil,nil)::(q2,nil,nil)::qs)
  | swap_eq : forall qs1 qs2, rec_eq (qs1++qs2) (qs2++qs1).
-
 
 (* Type Rules. *)
 
@@ -189,7 +185,6 @@ Inductive ityping : list qrecord -> iota -> list qrecord -> Prop :=
  | cu_nor : forall q qs ia th T, nor th = (q::qs) -> ityping ((nor_sub th qs)::T) ia ((nor_sub th qs)::T) -> ityping (th::T) (ICU q ia) (th::T)
  | cu_had : forall q qs ia th T, nor th = (q::qs) -> ityping ((had_sub th qs)::T) ia ((had_sub th qs)::T) -> ityping (th::T) (ICU q ia) (th::T)
  | iseq_ty : forall qa qb T1 T2 T3, ityping T1 qa T2 -> ityping T2 qb T3 -> ityping T1 (ISeq qa qb) T2.
-
 
 Inductive etype : list var -> list qrecord -> exp -> list qrecord -> Prop :=
    next_ty : forall s p T, ityping T p T -> etype s T (Next p) T
@@ -490,14 +485,48 @@ Definition rot_consist (s: list posi) (phi: state) :=
 Definition type_consist (T:list qrecord) (phi:state) :=
   forall s, In s T -> nor_consist (had s) phi /\ nor_consist (nor s) phi /\ rot_consist (rot s) phi.
 
-
 Lemma type_preservation : 
     forall rmax aenv T T' phi phi' e e' r, etype aenv T e T' -> @prog_sem rmax (phi,e) r (phi',e') -> type_consist T phi
             -> exists aenv' T1 T2, etype aenv' T1 e' T2 /\ rec_eq T' T2 /\ type_consist T2 phi'.
 Proof.
 Admitted.
 
+Definition exp_comparison (e1 e2: exp): bool :=
+  match e1 with 
+  | Next p => match e2 with 
+        | Next q => true
+        | _ => false
+        end
+  | ESKIP => match e2 with 
+      | ESKIP => true
+      | _ => false
+      end
+  | ESeq k m => match e2 with 
+      | ESeq o p => true
+      | _ => false
+      end 
+  | Had b=> match e2 with 
+      | Had c => true
+      | _ => false
+      end  
+| New b=> match e2 with 
+      | New c => true
+      | _ => false
+      end 
+  | Meas x qs e1 => match e2 with 
+      | Meas y qs2 e2 => true
+      | _ => false
+      end 
+  | IFa k op1 op2=> match e2 with 
+      | IFa l op3 op4 => true
+      | _ => false
+      end              
+  end.
+From QuickChick Require Import QuickChick.
+Conjecture uniform_state_prep_property: forall (m n: nat) (e: exp),
+exp_comparison ((uniform_state m n) e) ((uniform_state n m) e) = true.
 
+QuickChick (uniform_state_prep_property 40 30 ESKIP).
 (*
 Add [q1,q2] 1
 
