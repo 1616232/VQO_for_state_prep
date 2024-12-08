@@ -449,7 +449,7 @@ Fixpoint exp_subst_c (a:exp) (x:var) (n:nat) :=
              | Meas y qs e => if x =? y then Meas y qs e else Meas y qs (exp_subst_c e x n)
              | IFa b e1 e2 => IFa (bexp_subst_c b x n) (exp_subst_c e1 x n) (exp_subst_c e2 x n)
   end.
-
+Check exp_subst_c.
 Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
    seq_sem_1 : forall phi e,  prog_sem (phi, ESKIP [;] e) (1:R) (phi,e)
  | seq_sem_2: forall phi phi' r e1 e1' e2, prog_sem (phi,e1) r (phi',e1') -> prog_sem (phi, e1 [;] e2) r (phi', e1' [;] e2)
@@ -473,9 +473,9 @@ Fixpoint prog_sem (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with
 | ESeq k m => prog_sem rmax k (prog_sem rmax m st)
 | IFa k op1 op2=> if (simp_bexp k) then (prog_sem rmax op1 st) else (prog_sem rmax op2 st)
 | ESKIP => st
-| Had b => ESKIP 
-| New b => ESKIP
-| Meas x qs e1 => (posi_list_to_bitstring qs st) prog_sem rmax e1 st
+| Had b => st 
+| New b => st
+| Meas x qs e1 => prog_sem rmax (exp_subst_c e1 x (a_nat2fb (posi_list_to_bitstring qs st) (length qs))) st
 end.
 
 (* type preservation. *)
