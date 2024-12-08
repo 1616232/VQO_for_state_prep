@@ -334,7 +334,7 @@ Definition simp_bexp (e:cbexp) :=
                                      match simp_aexp b with Some v2 => Some (v1 <? v2) | _ => None end 
                                                  | _ => None end
   end.
-
+Check simp_bexp.
 (* add new qubits. *)
 Definition add_new_eta (s:eta_state) (q:posi) := s[q |-> Nval false].
 
@@ -379,6 +379,7 @@ Fixpoint apply_hads (s:state) (qs : list posi) :=
   match qs with nil => s
               | x::xs => add_had (apply_hads s xs) x
   end.
+  Check apply_hads.
 
 Fixpoint turn_angle_r (rval :nat -> bool) (n:nat) (size:nat) : R :=
    match n with 0 => (0:R)
@@ -467,21 +468,15 @@ Lemma type_progress :
 Proof.
 Admitted.
 
-Fixpoint cbexp_handler (c: cbexp): bool:=
-  |CEq x y =>
-  |CLt x y =>
-  end.
-
 Fixpoint prog_sem (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
 | Next p => instr_sem rmax p st
 | ESeq k m => prog_sem rmax k (prog_sem rmax m st)
+| IFa k op1 op2=> if (simp_bexp k) then (prog_sem rmax op1 st) else (prog_sem rmax op2 st)
 | ESKIP => st
-| Had b =>
-| New b =>
-| Meas x qs e1 =>
-| IFa k op1 op2=>
+| Had b => ESKIP 
+| New b => ESKIP
+| Meas x qs e1 => apply_mea 
 end.
-
 
 (* type preservation. *)
 Definition aenv_consist (aenv aenv': list var) := forall x, In x aenv -> In x aenv'.
