@@ -468,14 +468,14 @@ Lemma type_progress :
 Proof.
 Admitted.
 
-Fixpoint prog_sem (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
+Fixpoint prog_sem_fix (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
 | Next p => instr_sem rmax p st
-| ESeq k m => prog_sem rmax k (prog_sem rmax m st)
-| IFa k op1 op2=> if (simp_bexp k) then (prog_sem rmax op1 st) else (prog_sem rmax op2 st)
+| ESeq k m => prog_sem_fix rmax k (prog_sem_fix rmax m st)
+| IFa k op1 op2=> if (simp_bexp k) then (prog_sem_fix rmax op1 st) else (prog_sem_fix rmax op2 st)
 | ESKIP => st
 | Had b => st 
 | New b => st
-| Meas x qs e1 => prog_sem rmax (exp_subst_c e1 x (a_nat2fb (posi_list_to_bitstring qs st) (length qs))) st
+| Meas x qs e1 => prog_sem_fix rmax (exp_subst_c e1 x (a_nat2fb (posi_list_to_bitstring qs st) (length qs))) st
 end.
 
 (* type preservation. *)
