@@ -475,7 +475,7 @@ Fixpoint prog_sem (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with
 | ESKIP => st
 | Had b => ESKIP 
 | New b => ESKIP
-| Meas x qs e1 => apply_mea 
+| Meas x qs e1 => (posi_list_to_bitstring qs st) prog_sem rmax e1 st
 end.
 
 (* type preservation. *)
