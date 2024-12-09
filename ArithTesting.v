@@ -74,9 +74,9 @@ Module TofAdd.
 
 End TofAdd.
 
-(*
+
 QuickChick (TofAdd.tof_add_spec 60).
- *)
+
 
 Module RzAdd.
 

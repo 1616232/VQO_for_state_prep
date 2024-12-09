@@ -462,28 +462,6 @@ Lemma type_progress :
 Proof.
 Admitted.
 
-Fixpoint eval_aexp (env: (var -> nat)) (e:aexp) :=
- match e with BA x => env x
-            | Num n => n
-            | e1 [+] e2 => (eval_aexp env e1) + (eval_aexp env e2)
-            | e1 [*] e2 => (eval_aexp env e1) * (eval_aexp env e2)
- end.
-
-Definition eval_bexp (env: (var -> nat)) (e:cbexp) :=
-  match e with CEq a b => (eval_aexp env a) =? (eval_aexp env b)
-             | CLt a b => (eval_aexp env a) <? (eval_aexp env b)
-  end.
-
-Fixpoint prog_sem_fix (env: (var -> nat)) (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
-| Next p => instr_sem rmax p st
-| ESeq k m => prog_sem_fix env rmax k (prog_sem_fix env rmax m st)
-| IFa k op1 op2=> if (eval_bexp env k) then (prog_sem_fix env rmax op1 st) else (prog_sem_fix env rmax op2 st)
-| ESKIP => st
-| Had b => st 
-| New b => st
-| Meas x qs e1 => prog_sem_fix (fun b => if (b =? x) then (a_nat2fb (posi_list_to_bitstring qs st) (length qs)) else env b) rmax e1 st
-end.
-
 (* type preservation. *)
 Definition aenv_consist (aenv aenv': list var) := forall x, In x aenv -> In x aenv'.
 
@@ -501,6 +479,95 @@ Lemma type_preservation :
             -> exists aenv' T1 T2, etype aenv' T1 e' T2 /\ rec_eq T' T2 /\ type_consist T2 phi'.
 Proof.
 Admitted.
+
+
+(* Testing Semantics. *)
+
+
+Fixpoint eval_aexp (env: (var -> nat)) (e:aexp) :=
+ match e with BA x => env x
+            | Num n => n
+            | e1 [+] e2 => (eval_aexp env e1) + (eval_aexp env e2)
+            | e1 [*] e2 => (eval_aexp env e1) * (eval_aexp env e2)
+ end.
+
+Definition eval_bexp (env: (var -> nat)) (e:cbexp) :=
+  match e with CEq a b => (eval_aexp env a) =? (eval_aexp env b)
+             | CLt a b => (eval_aexp env a) <? (eval_aexp env b)
+  end.
+
+Definition tstate : Type := list posi * eta_state.
+
+Definition fstate : Type := (var -> nat) * tstate.
+
+Definition new_env (x:var) (qs:list posi) (st:fstate) :=
+  (fun b => if (b =? x) then (a_nat2fb (posi_list_to_bitstring qs (snd (snd st))) (length qs)) else (fst st) b).
+   
+
+Fixpoint prog_sem_fix (rmax: nat) (e: exp)(st: fstate) : fstate := match e with 
+| Next p => (fst st, (fst (snd st),instr_sem rmax p (snd (snd st))))
+| ESeq k m => prog_sem_fix rmax k (prog_sem_fix rmax m st)
+| IFa k op1 op2=> if (eval_bexp (fst st) k) then (prog_sem_fix rmax op1 st) else (prog_sem_fix rmax op2 st)
+| ESKIP => st
+| Had b => st
+| New b => st
+| Meas x qs e1 => prog_sem_fix rmax e1 ((new_env x qs st),(set_diff_posi (fst (snd st)) qs, snd (snd st)))
+end.
+
+Definition env_equivb vars (st st' : var -> nat) :=
+  forallb (fun x =>  st x =? st' x) vars.
+
+
+Fixpoint rz_val_eq (n:nat) (x y : rz_val) :=
+    match n with 0 => true
+               | S m => Bool.eqb (x m) (y m) && rz_val_eq m x y
+    end.
+
+Definition basis_val_eq (rmax:nat) (x y : basis_val) :=
+   match (x,y) with (Nval b, Nval b') => Bool.eqb b b'
+                | (Rval bl1, Rval bl2) => rz_val_eq rmax bl1 bl2
+                | _ => false
+   end.
+
+Definition st_equivb (rmax:nat) (vars: list posi) (st st': eta_state) :=
+  forallb (fun x => basis_val_eq rmax (st x) (st' x)) vars.
+
+From Coq Require Import Arith NArith.
+From QuickChick Require Import QuickChick.
+Require Import Testing.
+
+Definition bv2Eta (n:nat) (x:var) (l: N) : eta_state :=
+   fun p => if (snd p <? n) && (fst p =? x) then Nval (N.testbit_nat l (snd p)) else Nval false.
+
+Module Simple.
+
+  Definition rmax := 8.
+
+  Definition m := 10.
+
+  Definition cvars := [z_var].
+
+  Definition qvars : list posi := (y_var,0)::(lst_posi rmax x_var).
+
+  Definition init_env : var -> nat := fun _ => 0.
+
+  Definition init_st : eta_state := fun _ => Nval false.
+
+  Definition uniform_s (n:nat) (m:nat) := 
+       Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
+
+  Definition simple_eq (e:exp) (v:N) := 
+     let (env,qstate) := prog_sem_fix rmax e (init_env,(qvars,bv2Eta rmax x_var v)) in
+        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) rmax <? m  else true.
+
+
+  Conjecture uniform_correct :
+    forall (vx : N), simple_eq (uniform_s rmax m) vx = true.
+
+End Simple.
+
+QuickChick Simple.uniform_correct.
+
 
 Definition exp_comparison (e1 e2: exp): bool :=
   match e1 with 
@@ -533,12 +600,17 @@ Definition exp_comparison (e1 e2: exp): bool :=
       | _ => false
       end              
   end.
-(* Definition exp_map_comparison (e1: (exp->exp)) (e2: (exp->exp)): bool:=
+
+(*
+Definition exp_map_comparison (e1: (exp->exp)) (e2: (exp->exp)): bool:=
 (exp_comparison (e1 ESKIP) (e2 ESKIP))
-&& (exp_comparison (e1 IFa _ _ _) (e2 IFa)). *)
+&& (exp_comparison (e1 IFa _ _ _) (e2 IFa)). 
 Lemma exp_of_uniform_state: forall (m n: nat) (e1 e2 e3: exp), (exp_comparison (uniform_state m n e3) (ESeq e1 e2))=true.
 Proof. intros. unfold uniform_state. unfold exp_comparison.  reflexivity. Qed. 
+*)
 From QuickChick Require Import QuickChick.
+
+
 Module Test_prop. 
 Conjecture uniform_state_eskip_behavior: forall (m: nat) (n: nat),
 exp_comparison ((uniform_state m n) ESKIP) ((uniform_state n m) ESKIP) = true.
@@ -548,7 +620,23 @@ exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) (
 (* Check uniform_state_new_behavior. *)
 Conjecture uniform_state_new_eskip_behavior: forall (m n o: nat) (x: var),
 exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) ESKIP) = true.
+
+
+
 End Test_prop.
+
+QuickChick (Test_prop.uniform_state_eskip_behavior).
+
+(*
+Require Import Bvector.
+Require Import Testing.
+Require Import CLArith.
+From QuickChick Require Import QuickChick.
+
+Definition f_env := var -> nat.
+
+*)
+
 (* #[export] Instance shrinkExp : Shrink exp :=
   {
     shrink exp :=
@@ -560,6 +648,8 @@ End Test_prop.
 
 (*
 QuickChick (Test_prop.uniform_state_eskip_behavior).
+
+
 QuickChick (Test_prop.uniform_state_new_behavior).
 QuickChick (Test_prop.uniform_state_new_eskip_behavior).
 
