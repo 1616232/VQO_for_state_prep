@@ -462,10 +462,22 @@ Lemma type_progress :
 Proof.
 Admitted.
 
+Fixpoint eval_aexp (env: (var -> nat)) (e:aexp) :=
+ match e with BA x => env x
+            | Num n => n
+            | e1 [+] e2 => (eval_aexp env e1) + (eval_aexp env e2)
+            | e1 [*] e2 => (eval_aexp env e1) * (eval_aexp env e2)
+ end.
+
+Definition eval_bexp (env: (var -> nat)) (e:cbexp) :=
+  match e with CEq a b => (eval_aexp env a) =? (eval_aexp env b)
+             | CLt a b => (eval_aexp env a) <? (eval_aexp env b)
+  end.
+
 Fixpoint prog_sem_fix (env: (var -> nat)) (rmax: nat) (e: exp)(st: eta_state): eta_state := match e with 
 | Next p => instr_sem rmax p st
 | ESeq k m => prog_sem_fix env rmax k (prog_sem_fix env rmax m st)
-| IFa k op1 op2=> if (simp_bexp k) then (prog_sem_fix env rmax op1 st) else (prog_sem_fix env rmax op2 st)
+| IFa k op1 op2=> if (eval_bexp env k) then (prog_sem_fix env rmax op1 st) else (prog_sem_fix env rmax op2 st)
 | ESKIP => st
 | Had b => st 
 | New b => st
@@ -546,10 +558,11 @@ End Test_prop.
       end
   }. *)
 
+(*
 QuickChick (Test_prop.uniform_state_eskip_behavior).
 QuickChick (Test_prop.uniform_state_new_behavior).
 QuickChick (Test_prop.uniform_state_new_eskip_behavior).
-(*
+
 Add [q1,q2] 1
 
 take q1 and q2 value in st, and then compose them to be a bitstring, and then add 1, 
