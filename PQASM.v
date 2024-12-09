@@ -541,9 +541,9 @@ Definition bv2Eta (n:nat) (x:var) (l: N) : eta_state :=
 
 Module Simple.
 
-  Definition rmax := 8.
+  Definition rmax := 16.
 
-  Definition m := 10.
+  Definition m := 1000.
 
   Definition cvars := [z_var].
 
@@ -554,7 +554,7 @@ Module Simple.
   Definition init_st : eta_state := fun _ => Nval false.
 
   Definition uniform_s (n:nat) (m:nat) := 
-       Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
+       Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
 
   Definition simple_eq (e:exp) (v:N) := 
      let (env,qstate) := prog_sem_fix rmax e (init_env,(qvars,bv2Eta rmax x_var v)) in
