@@ -66,6 +66,18 @@ Definition uniform_state (n:nat) (m:nat) :=
                              [;] Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
 
 (* Check uniform_state. *)
+Fixpoint repeat_operator_ICU_Add (a b: list posi):= 
+  match a with 
+| nil => ESKIP 
+| h::t => match b with
+  | nil => ESKIP
+  | h2::t2 => (repeat_operator_ICU_Add t t2) [;] Next (ICU h (Ora (Add b (nat2fb 1))))
+  end
+end.
+
+Definition hamming_weight_superposition (n m:nat) := 
+  fun P =>  New (lst_posi n x_var) [;] New (lst_posi n y_var) [;] Had (lst_posi n x_var)
+                             [;] repeat_operator_ICU_Add (lst_posi n x_var) (lst_posi n y_var) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
 
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
 Inductive basis_val := Nval (b:bool) | Rval (n:rz_val).
@@ -620,8 +632,6 @@ exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) (
 (* Check uniform_state_new_behavior. *)
 Conjecture uniform_state_new_eskip_behavior: forall (m n o: nat) (x: var),
 exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) ESKIP) = true.
-
-
 
 End Test_prop.
 
