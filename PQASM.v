@@ -689,7 +689,7 @@ Module Hamming.
         if env z_var =? target_hamming_w then (hamming_weight_of_bitstring state_qubits (posi_list_to_bitstring (fst qstate) (snd qstate))) =? target_hamming_w  else true.
 
   Conjecture hamming_state_correct:
-    forall (vx : N) hamming_test_eq (hamming_state state_qubits hamming_qubits target_hamming_w) vx = true.
+    forall (vx : N), hamming_test_eq (hamming_state state_qubits hamming_qubits target_hamming_w) vx = true.
 
 
 End Hamming.

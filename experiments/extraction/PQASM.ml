@@ -1,4 +1,5 @@
 open BasicUtility
+open BinNat
 open Datatypes
 open ListSet
 open MathSpec
@@ -240,3 +241,95 @@ let rec prog_sem_fix rmax e st =
     then prog_sem_fix rmax op1 st
     else prog_sem_fix rmax op2 st
   | _ -> st
+
+(** val bv2Eta : int -> var -> int -> eta_state **)
+
+let bv2Eta n x l p =
+  if (&&) (Nat.ltb (snd p) n) (Nat.eqb (fst p) x)
+  then Nval (N.testbit_nat l (snd p))
+  else Nval false
+
+module Hamming =
+ struct
+  (** val state_qubits : int **)
+
+  let state_qubits =
+    succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ
+      (succ (succ (succ (succ (succ (succ (succ (succ 0)))))))))))))))))))
+
+  (** val hamming_qubits : int **)
+
+  let hamming_qubits =
+    succ (succ (succ (succ (succ (succ 0)))))
+
+  (** val target_hamming_w : int **)
+
+  let target_hamming_w =
+    succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ (succ
+      (succ (succ (succ (succ (succ 0))))))))))))))))
+
+  (** val cvars : var list **)
+
+  let cvars =
+    z_var :: []
+
+  (** val qvars : posi list **)
+
+  let qvars =
+    lst_posi state_qubits x_var
+
+  (** val init_env : var -> int **)
+
+  let init_env _ =
+    0
+
+  (** val init_st : eta_state **)
+
+  let init_st _ =
+    Nval false
+
+  (** val repeat : posi list -> (posi -> exp) -> exp **)
+
+  let rec repeat reg p =
+    match reg with
+    | [] -> ESKIP
+    | p0 :: r -> ESeq ((p p0), (repeat r p))
+
+  (** val bool_to_nat : bool -> int **)
+
+  let bool_to_nat = function
+  | true -> succ 0
+  | false -> 0
+
+  (** val hamming_weight_of_bitstring : int -> (int -> bool) -> int **)
+
+  let rec hamming_weight_of_bitstring n bs =
+    (fun fO fS n -> if n=0 then fO () else fS (max 0 (n-1)))
+      (fun _ -> 0)
+      (fun m -> (+) (bool_to_nat (bs n)) (hamming_weight_of_bitstring m bs))
+      n
+
+  (** val hamming_state : int -> int -> int -> exp **)
+
+  let hamming_state n h_n w =
+    ESeq ((ESeq ((ESeq ((ESeq ((New (lst_posi n x_var)), (New
+      (lst_posi h_n y_var)))), (Had (lst_posi n x_var)))),
+      (repeat (lst_posi n x_var) (fun p -> Next (ICU (p, (Ora (Add
+        ((lst_posi h_n y_var), (nat2fb (succ 0))))))))))), (Meas (z_var,
+      (lst_posi h_n y_var), (IFa ((CEq ((BA z_var), (Num w))), ESKIP,
+      ESKIP)))))
+
+  (** val hamming_test_eq : exp -> int -> bool **)
+
+  let hamming_test_eq e v =
+    let (env, qstate) =
+      prog_sem_fix state_qubits e (init_env, (qvars,
+        (bv2Eta state_qubits x_var v)))
+    in
+    if Nat.eqb (env z_var) target_hamming_w
+    then Nat.eqb
+           (hamming_weight_of_bitstring state_qubits
+             (posi_list_to_bitstring (fst qstate) (snd qstate)))
+           target_hamming_w
+    else true
+ end

@@ -46,6 +46,7 @@ Separate Extraction
     PQASM.z_var
     PQASM.lst_posi
     PQASM.uniform_state
+    PQASM.Hamming
     Testing.exp_sem
     (* OQASM Toffoli-based modular multiplier *)
     ExtrOQASM.trans_modmult_rev
