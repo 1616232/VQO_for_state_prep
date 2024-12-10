@@ -1,3 +1,4 @@
+open Bool
 open PeanoNat
 
 type var = int
@@ -10,11 +11,20 @@ let posi_eq r1 r2 =
   let (x1, y1) = r1 in
   let (x2, y2) = r2 in (&&) (Nat.eqb x1 x2) (Nat.eqb y1 y2)
 
-type rz_val = int -> bool
+(** val posi_eq_reflect : posi -> posi -> reflect **)
 
-type coq_val =
-| Coq_nval of bool * rz_val
-| Coq_qval of rz_val * rz_val
+let posi_eq_reflect r1 r2 =
+  let b = posi_eq r1 r2 in if b then ReflectT else ReflectF
+
+(** val posi_eq_dec : posi -> posi -> bool **)
+
+let posi_eq_dec x y =
+  let h = posi_eq_reflect x y in
+  (match h with
+   | ReflectT -> true
+   | ReflectF -> false)
+
+type rz_val = int -> bool
 
 (** val eupdate : (posi -> 'a1) -> posi -> 'a1 -> posi -> 'a1 **)
 

@@ -7,6 +7,7 @@ Require Import QPE.
 Require Import BasicUtility.
 Require Import MathSpec.
 Require Import Classical_Prop.
+
 (*Require Import OQASM.
 Require Import Coq.QArith.QArith.*)
 Import Nat (eqb).
@@ -553,6 +554,7 @@ Module Simple.
 
   Definition init_st : eta_state := fun _ => Nval false.
 
+  (* n= number of qubits to put in this state, m is their maximum value. Here, both lead to skips, but one sets z_var equal to 1, which affects how simple_eq tests it.*)
   Definition uniform_s (n:nat) (m:nat) := 
        Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
 
@@ -626,6 +628,73 @@ exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) E
 End Test_prop.
 
 QuickChick (Test_prop.uniform_state_eskip_behavior).
+
+Module Hamming.
+
+  Definition state_qubits := 20.
+  Definition hamming_qubits := 6.
+  Definition target_hamming_w := 17.
+
+  (* classical variables *)
+  Definition cvars := [z_var].
+
+  (* Fixpoint concat (l1 l2: list (var * nat)) :=
+    match l1 with
+    | nil => l2
+    | _ => (fst l1)::(concat (snd l1) l2)
+    end. *)
+
+  (* Quantum registers, accessible with x_var and y_var *)
+  Definition qvars : list posi := (lst_posi state_qubits x_var).
+
+  (* Environment to start with; all variables set to 0 *)
+  Definition init_env : var -> nat := fun _ => 0.
+
+  (* not sure if this is actually needed *)
+  Definition init_st : eta_state := fun _ => Nval false.
+
+  (* Returns an expression to run P on each qubit position in reg*)
+  Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
+    match reg with
+    | nil => ESKIP
+    | p::r => (P p) [;] (repeat r P)
+    end.
+
+  (* Takes a boolean and returns 1 if it's true and 0 if it's false *)
+  Definition bool_to_nat (b: bool) :=
+    match b with
+    | true => 1
+    | false => 0
+    end.
+
+  (* For the hamming_test_eq, gets the hamming weight of a bitstring
+    bs is the bitstring, n is the length of the bitstring *)
+  Fixpoint hamming_weight_of_bitstring (n: nat) (bs: (nat -> bool)) :=
+    match n with
+    | 0 => 0
+    | S m => (bool_to_nat (bs n)) + (hamming_weight_of_bitstring m bs)
+    end.
+
+  (* Prepare a uniform superposition across all states that have a hamming weight equal to w.
+    n is the number of qubits in the register being preapred; 
+    h_n is the number of qubits to use when measuring the hamming weight
+  *)
+  Definition hamming_state (n:nat) (h_n:nat) (w:nat) :=
+    New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
+      (repeat (lst_posi n x_var) (fun (p:posi) => (ICU p (Ora (Add (lst_posi h_n y_var) (nat2fb 1)))))) [;] 
+      Meas z_var (lst_posi h_n y_var) (IFa (CEq z_var (Num w)) ESKIP ESKIP).
+
+  Definition hamming_test_eq (e:exp) (v:N) := 
+     let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
+        if env z_var =? target_hamming_w then (hamming_weight_of_bitstring state_qubits (posi_list_to_bitstring (fst qstate) (snd qstate))) =? target_hamming_w  else true.
+
+  Conjecture hamming_state_correct:
+    forall (vx : N) hamming_test_eq (hamming_state state_qubits hamming_qubits target_hamming_w) vx = true.
+
+
+End Hamming.
+
+QuickChick Hamming.hamming_state_correct.
 
 (*
 Require Import Bvector.
