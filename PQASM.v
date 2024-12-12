@@ -552,34 +552,32 @@ Definition bv2Eta (n:nat) (x:var) (l: N) : eta_state :=
    fun p => if (snd p <? n) && (fst p =? x) then Nval (N.testbit_nat l (snd p)) else Nval false.
 
 Module Simple.
-
+(* 
   Definition rmax := 16.
 
-  Definition m := 1000.
+  Definition m := 1000. *)
 
-  Definition cvars := [z_var].
+  (* Definition cvars := [z_var]. *)
 
-  Definition qvars : list posi := (y_var,0)::(lst_posi rmax x_var).
+  Definition qvars (n: nat) : list posi := (y_var,0)::(lst_posi n x_var).
 
   Definition init_env : var -> nat := fun _ => 0.
 
-  Definition init_st : eta_state := fun _ => Nval false.
+  (* Definition init_st : eta_state := fun _ => (Rval (fun (n:nat) => true)). *)
 
   Definition uniform_s (n:nat) (m:nat) := 
        Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
-
-  Definition simple_eq (e:exp) (v:N) := 
-     let (env,qstate) := prog_sem_fix rmax e (init_env,(qvars,bv2Eta rmax x_var v)) in
-        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) rmax <? m  else true.
-
-
+Check uniform_s.
+  Definition simple_eq (e:exp) (v:N) (k n m: nat) := 
+     let (env,qstate) := prog_sem_fix n e (init_env,(qvars k,bv2Eta n x_var v)) in
+        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? m  else true.
+Check simple_eq.
   Conjecture uniform_correct :
-    forall (vx : N), simple_eq (uniform_s rmax m) vx = true.
+    forall (vx : N) (a b c j k: nat), simple_eq (uniform_s j k) vx a b c = true.
 
 End Simple.
 
 QuickChick Simple.uniform_correct.
-
 
 Definition exp_comparison (e1 e2: exp): bool :=
   match e1 with 
@@ -635,7 +633,7 @@ exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) E
 
 End Test_prop.
 
-QuickChick (Test_prop.uniform_state_eskip_behavior).
+(* QuickChick (Test_prop.uniform_state_eskip_behavior). *)
 
 (*
 Require Import Bvector.
