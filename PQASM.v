@@ -69,15 +69,13 @@ Definition uniform_state (n:nat) (m:nat) :=
 Fixpoint repeat_operator_ICU_Add (a b: list posi):= 
   match a with 
 | nil => ESKIP 
-| h::t => match b with
-  | nil => ESKIP
-  | h2::t2 => (repeat_operator_ICU_Add t t2) [;] Next (ICU h (Ora (Add b (nat2fb 1))))
-  end
+| h::t => (repeat_operator_ICU_Add t b) [;] (ICU h (Ora (Add b (nat2fb 1))))
 end.
 
 Definition hamming_weight_superposition (n m:nat) := 
   fun P =>  New (lst_posi n x_var) [;] New (lst_posi n y_var) [;] Had (lst_posi n x_var)
-                             [;] repeat_operator_ICU_Add (lst_posi n x_var) (lst_posi n y_var) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
+                             [;] repeat_operator_ICU_Add (lst_posi n x_var) (lst_posi n y_var)
+                               [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
 
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
 Inductive basis_val := Nval (b:bool) | Rval (n:rz_val).
