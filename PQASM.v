@@ -684,6 +684,11 @@ exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) E
 End Test_prop.
 
 (* QuickChick (Test_prop.uniform_state_eskip_behavior). *)
+(*
+QuickChick (Test_prop.uniform_state_eskip_behavior).
+QuickChick (Test_prop.uniform_state_new_behavior).
+QuickChick (Test_prop.uniform_state_new_eskip_behavior).
+*)
 
 (*
 Require Import Bvector.
