@@ -8,6 +8,7 @@ Require Import RZArith.
 Require Import OracleExample.
 Require Import ExtrOQASM.
 Require Import PQASM.
+(* Require Import GHZTest. *)
 
 (* Standard utilities for bools, options, etc. *)
 Require Coq.extraction.ExtrOcamlBasic.
@@ -47,6 +48,7 @@ Separate Extraction
     PQASM.lst_posi
     PQASM.uniform_state
     PQASM.Hamming
+    PQASM.SumState
     Testing.exp_sem
     (* OQASM Toffoli-based modular multiplier *)
     ExtrOQASM.trans_modmult_rev

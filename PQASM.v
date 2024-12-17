@@ -633,7 +633,7 @@ Module Hamming.
 
   Definition state_qubits := 20.
   Definition hamming_qubits := 6.
-  Definition target_hamming_w := 17.
+  Definition target_hamming_w := 4.
 
   (* classical variables *)
   Definition cvars := [z_var].
@@ -686,7 +686,7 @@ Module Hamming.
 
   Definition hamming_test_eq (e:exp) (v:N) := 
      let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
-        if env z_var =? target_hamming_w then (hamming_weight_of_bitstring state_qubits (posi_list_to_bitstring (fst qstate) (snd qstate))) =? target_hamming_w  else true.
+        if env z_var =? target_hamming_w then (hamming_weight_of_bitstring state_qubits (posi_list_to_bitstring (fst qstate) (snd qstate))) =? target_hamming_w else true.
 
   Conjecture hamming_state_correct:
     forall (vx : N), hamming_test_eq (hamming_state state_qubits hamming_qubits target_hamming_w) vx = true.
@@ -694,7 +694,112 @@ Module Hamming.
 
 End Hamming.
 
-QuickChick Hamming.hamming_state_correct.
+QuickChick (Hamming.hamming_state_correct).
+
+Module SumState.
+
+  (* Number of quantum registers *)
+  Definition num_reg_test := 5.
+
+  (* Size of each register *)
+  Definition reg_size_test := 8.
+
+  (* Target Sum *)
+  Definition k_test := 324.
+
+  (* classical variables *)
+  Definition cvars := [z_var].
+
+  (* Quantum registers; x_var stores all of the state qbits*)
+  Definition qvars : list posi := (lst_posi (num_reg_test*reg_size_test) x_var).
+
+  (* Environment to start with; all variables set to 0 *)
+  Definition init_env : var -> nat := fun _ => 0.
+
+  (* Returns an expression to run P on each qubit position in reg*)
+  Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
+    match reg with
+    | nil => ESKIP
+    | p::r => (P p) [;] (repeat r P)
+    end.
+
+  (* Like repeat, but also gives the function an index to work with*)
+  Fixpoint repeat_ind (reg: list posi) (index: nat) (P: (posi -> nat -> exp)) :=
+    match reg with
+    | nil => ESKIP
+    | p::r => (P p index) [;] (repeat_ind r (index-1) P)
+    end.
+
+  (* Returns a list of variables that start at start_var *)
+  Fixpoint lst_var (len: nat) (start_var: var) :=
+    match len with
+    | 0 => nil
+    | S len_m => ((len_m+(start_var:nat)):var)::(lst_var len_m start_var)
+    end.
+
+  (* Repeats an operation on a list of quantum registers *)
+  Fixpoint repeat_reg (P: (list posi -> exp)) (regs: list var) (reg_size: nat):=
+    match regs with
+    | nil => ESKIP
+    | r::rs => (P (lst_posi reg_size r)) [;] (repeat_reg P rs reg_size)
+    end.
+
+  Fixpoint pow_2 (n: nat) :=
+    match n with
+    | 0 => 1
+    | S m => 2*(pow_2 (m))
+    end.
+
+  (* Takes a boolean and returns 1 if it's true and 0 if it's false *)
+  Definition bool_to_nat (b: bool) :=
+    match b with
+    | true => 1
+    | false => 0
+    end.
+
+  Definition sum_state (num_reg:nat) (reg_size:nat) (target_sum:nat) :=
+    let prep_list := (lst_var num_reg x_var) in 
+      let sum_var := ((x_var:nat)+num_reg):var in
+        (repeat_reg New prep_list reg_size) [;] (New (lst_posi (reg_size+num_reg) sum_var)) [;]
+        (
+          repeat_reg (
+            fun (lp: list posi) => (
+              repeat_ind lp reg_size (fun (p: posi) (index: nat) => (
+                ICU p (Ora (Add (lst_posi (reg_size + num_reg) sum_var) (nat2fb (pow_2 index))))
+              ))
+            )
+          )
+          prep_list
+          reg_size
+        ) [;]
+        Meas z_var (lst_posi (reg_size+num_reg) sum_var) (IFa (CEq z_var (Num target_sum)) ESKIP ESKIP).
+
+  (* Gets a register from a bitstring as a natural number *)
+  Fixpoint bitstring_slice (reg: nat) (reg_size: nat) (ind: nat) (bs: (nat -> bool)) :=
+    match ind with
+    | 0 => 0
+    | S m => (bitstring_slice reg reg_size m bs) * 2 + (bool_to_nat (bs ((reg - 1) * reg_size + (ind-1))))
+    end.
+
+  (* Sum of the integer values in a bitstring in big endian (MSB first) order. reg_size is the number of bits in each integer and n is the number of integers to add up*)
+  Fixpoint sum_of_bitstring (n: nat) (reg_size: nat) (bs: (nat -> bool)) :=
+    match n with
+    | 0 => 0
+    | S m => (bitstring_slice n reg_size reg_size bs) + (sum_of_bitstring m reg_size bs)
+    end.
+
+  (* Just need to get this to work *)
+  Definition sum_test_eq (e:exp) (v:N) :=
+    let state_qubits := num_reg_test * reg_size_test in
+      let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
+        if env z_var =? k_test then (sum_of_bitstring num_reg_test reg_size_test (posi_list_to_bitstring (fst qstate) (snd qstate))) =? k_test else true.
+
+  Conjecture sum_state_correct:
+    forall (vx : N), sum_test_eq (sum_state num_reg_test reg_size_test k_test) vx = true.
+
+End SumState.
+
+QuickChick (SumState.sum_state_correct).
 
 (*
 Require Import Bvector.

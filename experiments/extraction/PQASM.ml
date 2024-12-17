@@ -333,3 +333,4 @@ module Hamming =
            target_hamming_w
     else true
  end
+
