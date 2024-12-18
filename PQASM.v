@@ -68,6 +68,16 @@ Definition uniform_state (n:nat) (m:nat) :=
                              [;] Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
 
 (* Check uniform_state. *)
+Fixpoint repeat_operator_ICU_Add (a b: list posi):= 
+  match a with 
+| nil => ESKIP 
+| h::t => (repeat_operator_ICU_Add t b) [;] (ICU h (Ora (Add b (nat2fb 1))))
+end.
+
+Definition hamming_weight_superposition (n m:nat) := 
+  fun P =>  New (lst_posi n x_var) [;] New (lst_posi n y_var) [;] Had (lst_posi n x_var)
+                             [;] repeat_operator_ICU_Add (lst_posi n x_var) (lst_posi n y_var)
+                               [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
 
 (*true -> 1, false -> 0, rz_val : nat -> bool, a bitstring represented as booleans *)
 Inductive basis_val := Nval (b:bool) | Rval (n:rz_val).
@@ -449,6 +459,7 @@ Fixpoint exp_subst_c (a:exp) (x:var) (n:nat) :=
 Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
    seq_sem_1 : forall phi e,  prog_sem (phi, ESKIP [;] e) (1:R) (phi,e)
  | seq_sem_2: forall phi phi' r e1 e1' e2, prog_sem (phi,e1) r (phi',e1') -> prog_sem (phi, e1 [;] e2) r (phi', e1' [;] e2)
+ | if_sem_3: forall phi b e1 e2, simp_bexp b = None -> prog_sem (phi, IFa b e1 e2) 1 (phi, IFa b e1 e2)
  | if_sem_1 : forall phi b e1 e2, simp_bexp b = Some true -> prog_sem (phi, IFa b e1 e2) 1 (phi, e1)
  | if_sem_2 : forall phi b e1 e2, simp_bexp b = Some false -> prog_sem (phi, IFa b e1 e2) 1 (phi, e2)
  | new_sem : forall phi bl, prog_sem (phi, New bl) 1 (add_new phi bl, ESKIP)
@@ -456,13 +467,53 @@ Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
  | had_sem : forall phi bl, prog_sem (phi, Had bl) 1 (apply_hads phi bl, ESKIP)
  | mea_sem : forall phi x qs e bl phi' rv, apply_mea rmax phi qs bl = (phi',rv) 
            -> prog_sem (phi, Meas x qs e) rv (phi', exp_subst_c e x (a_nat2fb bl (length qs))).
-   
+  
 (* progress theorem *)
 Lemma type_progress : 
-    forall rmax aenv T T' phi e, etype aenv T e T' 
+    forall rmax aenv T T' phi e , etype aenv T e T' 
           -> exists r phi' e', @prog_sem rmax (phi,e) r (phi',e').
 Proof.
-Admitted.
+  intros rmax aenv T T' phi e Htype.
+  induction Htype.
+  - (* Case: Next *)
+    exists R1, (app_inst rmax phi p), ESKIP.
+    apply iota_sem.
+
+  -  (* Case: Had *)
+    exists R1, (apply_hads phi qs), ESKIP.
+    apply had_sem.
+  - (* Case: New *)
+    exists R1, (add_new phi qs), ESKIP.
+    apply new_sem.
+     - (* Case: ESeq *)
+    destruct IHHtype1 as [r1 [phi1 [e1' Hprog1]]].
+    destruct IHHtype2 as [r2 [phi2 [e2' Hprog2]]].
+    exists r1, phi1, (e1' [;] qb).
+    apply seq_sem_2. 
+    assumption.
+ - (* Case: IFa *)
+    destruct (simp_bexp b) eqn:Hb.
+    + (* Simplifiable boolean expression *)
+       destruct b0.
+      * (* Case: b evaluates to true *)
+        exists R1, phi, e1.
+        apply if_sem_1.
+        assumption.
+      * (* Case: b evaluates to false *)
+        exists R1, phi, e2.
+        apply if_sem_2. 
+        assumption.
+    + (* Case: b evaluates to None *)
+      exists R1, phi, (IFa b e1 e2).
+      apply if_sem_3.
+      assumption.
+ - (* Case:  Meas *)
+  remember (apply_mea rmax phi qs (fun _ => false)) as mea_res.
+  destruct mea_res as [phi' rv].
+  exists rv, phi', (exp_subst_c e x (a_nat2fb (fun _ => false) (length qs))).
+  apply mea_sem.
+ auto.
+Qed.
 
 (* type preservation. *)
 Definition aenv_consist (aenv aenv': list var) := forall x, In x aenv -> In x aenv'.
@@ -480,7 +531,16 @@ Lemma type_preservation :
     forall rmax aenv T T' phi phi' e e' r, etype aenv T e T' -> @prog_sem rmax (phi,e) r (phi',e') -> type_consist T phi
             -> exists aenv' T1 T2, etype aenv' T1 e' T2 /\ rec_eq T' T2 /\ type_consist T2 phi'.
 Proof.
+  intros rmax aenv T T' phi phi' e  e'  r Htype.
+  -(* Case: Next *)
+    exists aenv, T', T'.
+    split.
+    
+
+      
+
 Admitted.
+
 
 
 (* Testing Semantics. *)
@@ -542,35 +602,33 @@ Definition bv2Eta (n:nat) (x:var) (l: N) : eta_state :=
    fun p => if (snd p <? n) && (fst p =? x) then Nval (N.testbit_nat l (snd p)) else Nval false.
 
 Module Simple.
-
+(* 
   Definition rmax := 16.
 
-  Definition m := 1000.
+  Definition m := 1000. *)
 
-  Definition cvars := [z_var].
+  (* Definition cvars := [z_var]. *)
 
-  Definition qvars : list posi := (y_var,0)::(lst_posi rmax x_var).
+  Definition qvars (n: nat) : list posi := (y_var,0)::(lst_posi n x_var).
 
   Definition init_env : var -> nat := fun _ => 0.
 
-  Definition init_st : eta_state := fun _ => Nval false.
+  (* Definition init_st : eta_state := fun _ => (Rval (fun (n:nat) => true)). *)
 
   (* n= number of qubits to put in this state, m is their maximum value. Here, both lead to skips, but one sets z_var equal to 1, which affects how simple_eq tests it.*)
   Definition uniform_s (n:nat) (m:nat) := 
        Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
-
-  Definition simple_eq (e:exp) (v:N) := 
-     let (env,qstate) := prog_sem_fix rmax e (init_env,(qvars,bv2Eta rmax x_var v)) in
-        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) rmax <? m  else true.
-
-
+Check uniform_s.
+  Definition simple_eq (e:exp) (v:N) (k n m: nat) := 
+     let (env,qstate) := prog_sem_fix n e (init_env,(qvars k,bv2Eta n x_var v)) in
+        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? m  else true.
+Check simple_eq.
   Conjecture uniform_correct :
-    forall (vx : N), simple_eq (uniform_s rmax m) vx = true.
+    forall (vx : N) (a b c j k: nat), simple_eq (uniform_s j k) vx a b c = true.
 
 End Simple.
 
 QuickChick Simple.uniform_correct.
-
 
 Definition exp_comparison (e1 e2: exp): bool :=
   match e1 with 
@@ -624,11 +682,85 @@ exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) (
 Conjecture uniform_state_new_eskip_behavior: forall (m n o: nat) (x: var),
 exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) ESKIP) = true.
 
-
-
 End Test_prop.
 
+<<<<<<< HEAD
+(* QuickChick (Test_prop.uniform_state_eskip_behavior). *)
+=======
+Module Hamming.
+
+  Definition state_qubits := 20.
+  Definition hamming_qubits := 6.
+  Definition target_hamming_w := 17.
+
+  (* classical variables *)
+  Definition cvars := [z_var].
+
+  (* Fixpoint concat (l1 l2: list (var * nat)) :=
+    match l1 with
+    | nil => l2
+    | _ => (fst l1)::(concat (snd l1) l2)
+    end. *)
+
+  (* Quantum registers, accessible with x_var and y_var *)
+  Definition qvars : list posi := (lst_posi state_qubits x_var).
+
+  (* Environment to start with; all variables set to 0 *)
+  Definition init_env : var -> nat := fun _ => 0.
+
+  (* not sure if this is actually needed *)
+  Definition init_st : eta_state := fun _ => Nval false.
+
+  (* Returns an expression to run P on each qubit position in reg*)
+  Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
+    match reg with
+    | nil => ESKIP
+    | p::r => (P p) [;] (repeat r P)
+    end.
+
+  (* Takes a boolean and returns 1 if it's true and 0 if it's false *)
+  Definition bool_to_nat (b: bool) :=
+    match b with
+    | true => 1
+    | false => 0
+    end.
+
+  (* For the hamming_test_eq, gets the hamming weight of a bitstring
+    bs is the bitstring, n is the length of the bitstring *)
+  Fixpoint hamming_weight_of_bitstring (n: nat) (bs: (nat -> bool)) :=
+    match n with
+    | 0 => 0
+    | S m => (bool_to_nat (bs n)) + (hamming_weight_of_bitstring m bs)
+    end.
+
+  (* Prepare a uniform superposition across all states that have a hamming weight equal to w.
+    n is the number of qubits in the register being preapred; 
+    h_n is the number of qubits to use when measuring the hamming weight
+  *)
+  Definition hamming_state (n:nat) (h_n:nat) (w:nat) :=
+    New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
+      (repeat (lst_posi n x_var) (fun (p:posi) => (ICU p (Ora (Add (lst_posi h_n y_var) (nat2fb 1)))))) [;] 
+      Meas z_var (lst_posi h_n y_var) (IFa (CEq z_var (Num w)) ESKIP ESKIP).
+
+  Definition hamming_test_eq (e:exp) (v:N) := 
+     let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
+        if env z_var =? target_hamming_w then (hamming_weight_of_bitstring state_qubits 
+           (posi_list_to_bitstring (fst qstate) (snd qstate))) =? target_hamming_w  else true.
+
+  Conjecture hamming_state_correct:
+    forall (vx : N), hamming_test_eq (hamming_state state_qubits hamming_qubits target_hamming_w) vx = true.
+
+
+End Hamming.
+
+QuickChick Hamming.hamming_state_correct.
+
+>>>>>>> 574c525 (update)
+(*
 QuickChick (Test_prop.uniform_state_eskip_behavior).
+QuickChick (Test_prop.uniform_state_new_behavior).
+QuickChick (Test_prop.uniform_state_new_eskip_behavior).
+*)
 
 Module Hamming.
 
