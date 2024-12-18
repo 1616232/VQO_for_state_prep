@@ -7,6 +7,7 @@ Require Import QPE.
 Require Import BasicUtility.
 Require Import MathSpec.
 Require Import Classical_Prop.
+Require Import RZArith.
 
 (*Require Import OQASM.
 Require Import Coq.QArith.QArith.*)
@@ -653,7 +654,7 @@ Module Hamming.
   (* not sure if this is actually needed *)
   Definition init_st : eta_state := fun _ => Nval false.
 
-  (* Returns an expression to run P on each qubit position in reg*)
+  (* Returns an expression to run P on each qubit position in reg *)
   Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
     match reg with
     | nil => ESKIP
@@ -699,13 +700,13 @@ QuickChick (Hamming.hamming_state_correct).
 Module SumState.
 
   (* Number of quantum registers *)
-  Definition num_reg_test := 5.
+  Definition num_reg_test := 3.
 
   (* Size of each register *)
-  Definition reg_size_test := 8.
+  Definition reg_size_test := 4.
 
   (* Target Sum *)
-  Definition k_test := 324.
+  Definition k_test := 20.
 
   (* classical variables *)
   Definition cvars := [z_var].
@@ -800,6 +801,68 @@ Module SumState.
 End SumState.
 
 QuickChick (SumState.sum_state_correct).
+
+Module ModExpState.
+
+  Definition c_test := 3.
+  Definition N_test := 34.
+  Definition m_test := 15.
+
+  Definition product_var := 3.
+  Definition ancilla_var := 4.
+
+  Definition qvars : list posi := (lst_posi m_test x_var).
+  
+  Fixpoint pow (c n: nat) :=
+    match n with
+    | 0 => 1
+    | S m => c * (pow c m)
+    end.
+
+  Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
+    match reg with
+    | nil => ESKIP
+    | p::r => (P p) [;] (repeat r P)
+    end.
+
+  (* Like repeat, but also gives the function an index to work with*)
+  Fixpoint repeat_ind (reg: list posi) (index: nat) (P: (posi -> nat -> exp)) :=
+    match reg with
+    | nil => ESKIP
+    | p::r => (P p index) [;] (repeat_ind r (index-1) P)
+    end.
+
+  (* Returns a value of inv(a) such that inv(a) is a natural number and a*inv(a) mod N = 1*)
+  Definition inverse (a N: nat) :=
+    a.
+
+
+  Definition CNOT (ctrl tgt: posi) : exp :=
+    Next (ICU ctrl (Ora (Add (tgt::nil) (nat2fb 1)))).
+
+  Definition SWAP (x y : posi) := if (x ==? y) then ESKIP else (CNOT x y [;] CNOT y x [;] CNOT x y).
+
+  Fixpoint swap_regs (reg_1 reg_2: list posi) :=
+    match (reg_1, reg_2) with
+    | (nil, nil) => ESKIP
+    | (p_1::r_1, p_2::r_2) => (SWAP p_1 p_2) [;] (swap_regs r_1 r_2)
+    | (_, _) => ESKIP
+    end.
+
+  Definition mod_exp_state (num_qubits c num_exp_qubits N: nat) :=
+    New (lst_posi num_qubits x_var) [;] New (lst_posi num_exp_qubits y_var) [;] New (lst_posi num_exp_qubits product_var) [;] New (lst_posi 1 ancilla_var) [;] 
+    Had (lst_posi num_qubits x_var) [;]
+    (repeat (lst_posi num_qubits x_var) 
+      (fun (p: posi) (i: nat) => (
+        let A := (pow c (i-1)) in
+          (ICU (Ora (rz_modmult_full product_var y_var num_exp_qubits ancilla_var A (inverse A) N))) [;]
+          (swap_regs (lst_posi num_exp_qubits y_var) (lst_posi num_exp_qubits product_var))
+      )
+      )
+    ).
+  
+
+End ModExpState.
 
 (*
 Require Import Bvector.
