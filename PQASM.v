@@ -35,9 +35,11 @@ Notation "e0 [*] e1" := (AMult e0 e1) (at level 50) : exp_scope.
 
 Inductive cbexp := CEq (x:aexp) (y:aexp) | CLt (x:aexp) (y:aexp).
 
+(*add mod multiplication here, compilation to OQASM*)
 Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstring represenation of ps *)
               | Less (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
-              | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *).
+              | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *)
+              | ModMult (ps : list posi) (n:(nat-> bool)) (m: (nat-> bool)).
 
 Inductive iota:= ISeq (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
 
@@ -255,6 +257,12 @@ Definition posi_list_to_bitstring (ps: list posi) (st: eta_state): (nat-> bool) 
 Definition mu_addition (ps: list posi) (n:(nat-> bool)) (st: eta_state): (nat-> bool) :=
   sumfb false (posi_list_to_bitstring ps st) n.
 
+  Fixpoint mu_addition_reps (ps: list posi) (n:(nat-> bool)) (st: eta_state) (reps: nat): (nat-> bool):=
+    match reps with 
+    |0 => n
+    | S m => mu_addition_reps ps (mu_addition ps n st) st m 
+    end.
+
 Fixpoint mu_less_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (n: nat) : bool :=
   match n with 
     | 0 => false
@@ -291,17 +299,21 @@ Fixpoint bitstring_to_eta (f:nat -> bool) (l:list posi) (size:nat): eta_state :=
   match l with nil => (fun posi => Nval false)
              | x::xs => (fun y => if (posi_eq x y) then Nval (f (size - length (x::xs))) else (bitstring_to_eta f xs size) y)
   end.
-Definition mu_handling (m: mu) (st: eta_state) : eta_state :=
+
+(*add case here for modulo multiplication*)
+Definition mu_handling (rmax:nat) (m: mu) (st: eta_state) : eta_state :=
   match m with 
   | Add ps n => bitstring_to_eta (mu_addition ps n st) ps (length ps)
   | Less ps n p => st[ p|-> Nval (mu_less ps n st)]
   | Equal ps n p => st[ p|-> Nval (mu_eq ps n st)]
+  | ModMult ps n m =>  bitstring_to_eta (nat2fb 
+  ((a_nat2fb (posi_list_to_bitstring ps st) rmax) * (a_nat2fb n rmax) mod (a_nat2fb m rmax))) ps (length ps)
   end.
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state): eta_state :=
    match e with 
    | Ry p r => ry_rotate st p r rmax 
    | ISeq a b => instr_sem rmax b (instr_sem rmax a st)
-   | Ora m => mu_handling m st
+   | Ora m => mu_handling rmax m st
   | ICU x y => match st x with 
       | Rval r =>  st 
       | Nval j => if j then instr_sem rmax y st else st
@@ -628,7 +640,7 @@ Check simple_eq.
 
 End Simple.
 
-QuickChick Simple.uniform_correct.
+QuickChick (Simple.uniform_correct 100).
 
 Definition exp_comparison (e1 e2: exp): bool :=
   match e1 with 
@@ -684,9 +696,6 @@ exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) E
 
 End Test_prop.
 
-<<<<<<< HEAD
-(* QuickChick (Test_prop.uniform_state_eskip_behavior). *)
-=======
 Module Hamming.
 
   Definition state_qubits := 20.
@@ -752,10 +761,11 @@ Module Hamming.
 
 
 End Hamming.
+(* Check @choose. *)
+Check returnGen.
+Sample (choose (0,10)).
+QuickChick (Hamming.hamming_state_correct 100).
 
-QuickChick Hamming.hamming_state_correct.
-
->>>>>>> 574c525 (update)
 (*
 QuickChick (Test_prop.uniform_state_eskip_behavior).
 QuickChick (Test_prop.uniform_state_new_behavior).
