@@ -696,6 +696,13 @@ exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) E
 
 End Test_prop.
 
+(* Takes a boolean and returns 1 if it's true and 0 if it's false *)
+Definition bool_to_nat (b: bool) :=
+  match b with
+  | true => 1
+  | false => 0
+  end.
+
 Module Hamming.
 
   Definition state_qubits := 20.
@@ -725,13 +732,6 @@ Module Hamming.
     match reg with
     | nil => ESKIP
     | p::r => (P p) [;] (repeat r P)
-    end.
-
-  (* Takes a boolean and returns 1 if it's true and 0 if it's false *)
-  Definition bool_to_nat (b: bool) :=
-    match b with
-    | true => 1
-    | false => 0
     end.
 
   (* For the hamming_test_eq, gets the hamming weight of a bitstring
@@ -765,79 +765,6 @@ End Hamming.
 Check returnGen.
 Sample (choose (0,10)).
 QuickChick (Hamming.hamming_state_correct 100).
-
-(*
-QuickChick (Test_prop.uniform_state_eskip_behavior).
-QuickChick (Test_prop.uniform_state_new_behavior).
-QuickChick (Test_prop.uniform_state_new_eskip_behavior).
-*)
-
-Module Hamming.
-
-  Definition state_qubits := 20.
-  Definition hamming_qubits := 6.
-  Definition target_hamming_w := 4.
-
-  (* classical variables *)
-  Definition cvars := [z_var].
-
-  (* Fixpoint concat (l1 l2: list (var * nat)) :=
-    match l1 with
-    | nil => l2
-    | _ => (fst l1)::(concat (snd l1) l2)
-    end. *)
-
-  (* Quantum registers, accessible with x_var and y_var *)
-  Definition qvars : list posi := (lst_posi state_qubits x_var).
-
-  (* Environment to start with; all variables set to 0 *)
-  Definition init_env : var -> nat := fun _ => 0.
-
-  (* not sure if this is actually needed *)
-  Definition init_st : eta_state := fun _ => Nval false.
-
-  (* Returns an expression to run P on each qubit position in reg *)
-  Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
-    match reg with
-    | nil => ESKIP
-    | p::r => (P p) [;] (repeat r P)
-    end.
-
-  (* Takes a boolean and returns 1 if it's true and 0 if it's false *)
-  Definition bool_to_nat (b: bool) :=
-    match b with
-    | true => 1
-    | false => 0
-    end.
-
-  (* For the hamming_test_eq, gets the hamming weight of a bitstring
-    bs is the bitstring, n is the length of the bitstring *)
-  Fixpoint hamming_weight_of_bitstring (n: nat) (bs: (nat -> bool)) :=
-    match n with
-    | 0 => 0
-    | S m => (bool_to_nat (bs n)) + (hamming_weight_of_bitstring m bs)
-    end.
-
-  (* Prepare a uniform superposition across all states that have a hamming weight equal to w.
-    n is the number of qubits in the register being preapred; 
-    h_n is the number of qubits to use when measuring the hamming weight
-  *)
-  Definition hamming_state (n:nat) (h_n:nat) (w:nat) :=
-    New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
-      (repeat (lst_posi n x_var) (fun (p:posi) => (ICU p (Ora (Add (lst_posi h_n y_var) (nat2fb 1)))))) [;] 
-      Meas z_var (lst_posi h_n y_var) (IFa (CEq z_var (Num w)) ESKIP ESKIP).
-
-  Definition hamming_test_eq (e:exp) (v:N) := 
-     let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
-        if env z_var =? target_hamming_w then (hamming_weight_of_bitstring state_qubits (posi_list_to_bitstring (fst qstate) (snd qstate))) =? target_hamming_w else true.
-
-  Conjecture hamming_state_correct:
-    forall (vx : N), hamming_test_eq (hamming_state state_qubits hamming_qubits target_hamming_w) vx = true.
-
-
-End Hamming.
-
-QuickChick (Hamming.hamming_state_correct).
 
 Module SumState.
 
@@ -893,13 +820,6 @@ Module SumState.
     | S m => 2*(pow_2 (m))
     end.
 
-  (* Takes a boolean and returns 1 if it's true and 0 if it's false *)
-  Definition bool_to_nat (b: bool) :=
-    match b with
-    | true => 1
-    | false => 0
-    end.
-
   Definition sum_state (num_reg:nat) (reg_size:nat) (target_sum:nat) :=
     let prep_list := (lst_var num_reg x_var) in 
       let sum_var := ((x_var:nat)+num_reg):var in
@@ -948,15 +868,35 @@ Module ModExpState.
 
   Definition c_test := 3.
   Definition N_test := 34.
-  Definition m_test := 15.
 
-  Definition product_var := 3.
-  Definition ancilla_var := 4.
+  Definition num_qubits_test := 8.
+  Definition num_exp_qubits_test := 7.
 
-  Definition qvars : list posi := (lst_posi m_test x_var).
+  (* Environment to start with; all variables set to 0 *)
+  Definition init_env : var -> nat := fun _ => 0.
+
+  (* Quantum registers; x_var stores all of the state qubits*)
+  Definition qvars : list posi := (lst_posi (num_qubits_test) x_var).
   
-  Fixpoint pow (c n: nat) :=
-    match n with
+  (* Returns c^n mod m. c is the base number, n is the exponent, m is the mod factor, 
+  and max_iter is the maximum number of iterations this function should have. 
+  It's needed to placate Coq. This function requires about log_2 n recursive steps. *)
+  Fixpoint mod_pow (c n m max_iter: nat) :=
+    match max_iter with
+    | 0 => 1 mod m
+    | S l => 
+      if n =? 0 then 1 
+      else 
+        let u := (mod_pow c (n/2) m l) in
+          if (n mod 2 =? 0) then 
+            ((u*u) mod m) 
+          else 
+            ((((u*u) mod m)*c) mod m)
+    end.
+
+  (* Returns c^n *)
+  Fixpoint pow(c n: nat) :=
+    match n with 
     | 0 => 1
     | S m => c * (pow c m)
     end.
@@ -971,40 +911,46 @@ Module ModExpState.
   Fixpoint repeat_ind (reg: list posi) (index: nat) (P: (posi -> nat -> exp)) :=
     match reg with
     | nil => ESKIP
-    | p::r => (P p index) [;] (repeat_ind r (index-1) P)
+    | p::r => (repeat_ind r (index-1) P) [;] (P p index)
     end.
 
-  (* Returns a value of inv(a) such that inv(a) is a natural number and a*inv(a) mod N = 1*)
-  Definition inverse (a N: nat) :=
-    a.
+  Fixpoint fst_reg (reg_1_size: nat) (bs: (nat -> bool)) :=
+    match reg_1_size with
+    | 0 => 0
+    | S m => (fst_reg m bs) * 2 + (bool_to_nat (bs (reg_1_size-1)))
+    end.
 
-
-  Definition CNOT (ctrl tgt: posi) : exp :=
-    Next (ICU ctrl (Ora (Add (tgt::nil) (nat2fb 1)))).
-
-  Definition SWAP (x y : posi) := if (x ==? y) then ESKIP else (CNOT x y [;] CNOT y x [;] CNOT x y).
-
-  Fixpoint swap_regs (reg_1 reg_2: list posi) :=
-    match (reg_1, reg_2) with
-    | (nil, nil) => ESKIP
-    | (p_1::r_1, p_2::r_2) => (SWAP p_1 p_2) [;] (swap_regs r_1 r_2)
-    | (_, _) => ESKIP
+  Fixpoint snd_reg (reg_1_size reg_2_size: nat) (bs: (nat -> bool)) :=
+    match reg_2_size with
+    | 0 => 0
+    | S m => (snd_reg reg_1_size m bs) * 2 + (bool_to_nat (bs (reg_1_size + reg_2_size-1)))
     end.
 
   Definition mod_exp_state (num_qubits c num_exp_qubits N: nat) :=
-    New (lst_posi num_qubits x_var) [;] New (lst_posi num_exp_qubits y_var) [;] New (lst_posi num_exp_qubits product_var) [;] New (lst_posi 1 ancilla_var) [;] 
+    New (lst_posi num_qubits x_var) [;] New (lst_posi num_exp_qubits y_var) [;]
     Had (lst_posi num_qubits x_var) [;]
-    (repeat (lst_posi num_qubits x_var) 
+    (repeat_ind
+      (lst_posi num_qubits x_var)
+      num_qubits
       (fun (p: posi) (i: nat) => (
-        let A := (pow c (i-1)) in
-          (ICU (Ora (rz_modmult_full product_var y_var num_exp_qubits ancilla_var A (inverse A) N))) [;]
-          (swap_regs (lst_posi num_exp_qubits y_var) (lst_posi num_exp_qubits product_var))
+        let A := (mod_pow c (pow 2 (i-1)) N (i+20)) in
+          (ICU p (Ora (ModMult (lst_posi num_exp_qubits y_var) (nat2fb A) (nat2fb N))))
       )
       )
     ).
-  
+
+  Definition mod_exp_test_eq (e:exp) (v:N) := 
+    let state_qubits := num_qubits_test in
+      let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
+        (snd_reg num_qubits_test num_exp_qubits_test (posi_list_to_bitstring (fst qstate) (snd qstate))) =? 
+          ((mod_pow c_test (fst_reg num_qubits_test (posi_list_to_bitstring (fst qstate) (snd qstate)))) N_test num_qubits_test + 2).
+          
+  Conjecture mod_exp_state_correct:
+    forall (vx : N), mod_exp_test_eq (mod_exp_state num_qubits_test c_test num_exp_qubits_test N_test) vx = true.
 
 End ModExpState.
+
+QuickChick (ModExpState.mod_exp_state_correct).
 
 (*
 Require Import Bvector.
