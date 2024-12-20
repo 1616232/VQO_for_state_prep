@@ -191,11 +191,11 @@ module QvarNatType =
   (** val compare : t -> t -> (qvar * int) OrderedType.coq_Compare **)
 
   let compare x y =
-    let (q, n) = x in
-    let (q0, n0) = y in
-    (match q with
+    let (a, b) = x in
+    let (a0, b0) = y in
+    (match a with
      | G v ->
-       (match q0 with
+       (match a0 with
         | G v0 ->
           let h = blt_reflect v v0 in
           (match h with
@@ -204,28 +204,28 @@ module QvarNatType =
              let h0 = beq_reflect v v0 in
              (match h0 with
               | ReflectT ->
-                let h1 = blt_reflect n n0 in
+                let h1 = blt_reflect b b0 in
                 (match h1 with
                  | ReflectT -> OrderedType.LT
                  | ReflectF ->
-                   let h2 = beq_reflect n n0 in
+                   let h2 = beq_reflect b b0 in
                    (match h2 with
                     | ReflectT -> OrderedType.EQ
                     | ReflectF -> OrderedType.GT))
               | ReflectF -> OrderedType.GT))
         | L _ -> OrderedType.GT)
      | L v ->
-       (match q0 with
+       (match a0 with
         | G _ -> OrderedType.LT
         | L v0 ->
           let h = beq_reflect v v0 in
           (match h with
            | ReflectT ->
-             let h0 = blt_reflect n n0 in
+             let h0 = blt_reflect b b0 in
              (match h0 with
               | ReflectT -> OrderedType.LT
               | ReflectF ->
-                let h1 = beq_reflect n n0 in
+                let h1 = beq_reflect b b0 in
                 (match h1 with
                  | ReflectT -> OrderedType.EQ
                  | ReflectF -> OrderedType.GT))
@@ -317,11 +317,6 @@ let type_factor bv = function
       bind (typ_factor_full bv C Nat ic) (fun _ -> Some (a, b))
     | TNor (_, _) -> None)
 | Nor c -> typ_factor bv c
-
-(** val a_nat2fb : (int -> bool) -> int -> int **)
-
-let a_nat2fb f n =
-  natsum n (fun i -> ( * ) (Nat.b2n (f i)) (Nat.pow (succ (succ 0)) i))
 
 (** val is_q : typ -> bool **)
 
