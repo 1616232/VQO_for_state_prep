@@ -40,6 +40,7 @@ Extract Constant id_nat => "fun x : int -> x". (* add type annotation *)
 (* Perform extraction *)
 Separate Extraction
     PQASM.instr_sem
+    PQASM.prog_sem
     PQASM.prog_sem_fix
     PQASM.x_var
     PQASM.y_var
