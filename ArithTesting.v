@@ -29,13 +29,13 @@ Proof.
     rewrite IH. apply N.double_spec.
 Qed.
 
-Instance genPosSized : GenSized positive :=
+(* Instance genPosSized : GenSized positive :=
   {| arbitrarySized x := fmap N.succ_pos (arbitrarySized x) |}.
 
 Instance shrinkPos : Shrink positive :=
   {| shrink x := List.map N.succ_pos (shrink (Pos.pred_N x)) |}.
 
-Instance showPos : Show positive := {| show p := show_N (Npos p) |}.
+Instance showPos : Show positive := {| show p := show_N (Npos p) |}. *)
 
 Infix "[+]" := add_bvector (at level 50).
 
@@ -74,9 +74,7 @@ Module TofAdd.
 
 End TofAdd.
 
-(*
 QuickChick (TofAdd.tof_add_spec 60).
-*)
 
 Module RzAdd.
 
