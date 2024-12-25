@@ -707,7 +707,7 @@ Module Hamming.
 
   Definition state_qubits := 20.
   Definition hamming_qubits := 6.
-  Definition target_hamming_w := 17.
+  (* Definition target_hamming_w := 17. *)
 
   (* classical variables *)
   Definition cvars := [z_var].
@@ -753,17 +753,16 @@ Module Hamming.
 
   Definition hamming_test_eq (e:exp) (v:N) := 
      let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
-        if env z_var =? target_hamming_w then (hamming_weight_of_bitstring state_qubits 
-           (posi_list_to_bitstring (fst qstate) (snd qstate))) =? target_hamming_w  else true.
+        if env z_var =?  (hamming_weight_of_bitstring state_qubits 
+           (posi_list_to_bitstring (fst qstate) (snd qstate))) then true else false.
 
   Conjecture hamming_state_correct:
-    forall (vx : N), hamming_test_eq (hamming_state state_qubits hamming_qubits target_hamming_w) vx = true.
-
+    forall (vx : N) (n: nat), hamming_test_eq (hamming_state state_qubits hamming_qubits n) vx = true.
 
 End Hamming.
 (* Check @choose. *)
-Check returnGen.
-Sample (choose (0,10)).
+(* Check returnGen. *)
+(* Sample (choose (0,10)). *)
 QuickChick (Hamming.hamming_state_correct 100).
 
 Module SumState.
