@@ -771,7 +771,12 @@ Module AmplitudeAmplification.
     | nil => ESKIP
     | p::r => (P p) [;] (repeat r P) 
     end.
-
+(* Like repeat, but also gives the function an index to work with*)
+Fixpoint repeat_ind (reg: list posi) (index: nat) (P: (posi -> nat -> exp)) :=
+  match reg with
+  | nil => ESKIP
+  | p::r => (P p index) [;] (repeat_ind r (index-1) P)
+  end.
   Fixpoint pow_2 (n: nat) :=
     match n with
     | 0 => 1
@@ -780,7 +785,8 @@ Module AmplitudeAmplification.
 Check nat2fb.
     Definition amplitude_amplification_state (n r:nat) (h_n:nat) (w:nat) :=
     New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
-      repeat (lst_posi h_n y_var)  (fun (p:posi) => Next (Ry p (fun (n:nat)=> nat2fb n (r/pow_2 n)))).
+      repeat (lst_posi h_n y_var)  (fun (p:posi) => Next (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 n)))) [;]
+      repeat (lst_posi h_n y_var) (fun (p:posi) => repeat_ind (lst_posi n x_var) n (fun (k: posi) (j: nat) => (ICU p (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 (n-j))))))).
       
 End AmplitudeAmplification.
 
