@@ -39,7 +39,8 @@ Inductive cbexp := CEq (x:aexp) (y:aexp) | CLt (x:aexp) (y:aexp).
 Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstring represenation of ps *)
               | Less (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
               | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *)
-              | ModMult (ps : list posi) (n:(nat-> bool)) (m: (nat-> bool)).
+              | ModMult (ps : list posi) (n:(nat-> bool)) (m: (nat-> bool))
+              | Equal_posi_list (ps qs: list posi) (p:posi).
 
 Inductive iota:= ISeq (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
 
@@ -262,7 +263,26 @@ Definition mu_addition (ps: list posi) (n:(nat-> bool)) (st: eta_state): (nat-> 
     |0 => n
     | S m => mu_addition_reps ps (mu_addition ps n st) st m 
     end.
-
+  Fixpoint rz_val_eq (n:nat) (x y : rz_val) :=
+    match n with 0 => true
+                | S m => Bool.eqb (x m) (y m) && rz_val_eq m x y
+    end.
+  Definition basis_val_eq (rmax:nat) (x y : basis_val) :=
+      match (x,y) with (Nval b, Nval b') => Bool.eqb b b'
+                   | (Rval bl1, Rval bl2) => rz_val_eq rmax bl1 bl2
+                   | _ => false
+      end.
+  Fixpoint equality_list_posi_check (rmax: nat)(a b: list posi) (st: eta_state): bool:=
+    match a with
+    | nil => match b with 
+        | nil => true
+        | head::tail =>  false
+        end
+    | head::tail => match b with 
+        |nil => false
+        | head2::tail2 => if (basis_val_eq rmax (st head) (st head2)) then (equality_list_posi_check rmax tail tail2 st) else false
+        end  
+    end.  
 Fixpoint mu_less_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (n: nat) : bool :=
   match n with 
     | 0 => false
@@ -300,7 +320,6 @@ Fixpoint bitstring_to_eta (f:nat -> bool) (l:list posi) (size:nat): eta_state :=
              | x::xs => (fun y => if (posi_eq x y) then Nval (f (size - length (x::xs))) else (bitstring_to_eta f xs size) y)
   end.
 
-(*add case here for modulo multiplication*)
 Definition mu_handling (rmax:nat) (m: mu) (st: eta_state) : eta_state :=
   match m with 
   | Add ps n => bitstring_to_eta (mu_addition ps n st) ps (length ps)
@@ -308,6 +327,7 @@ Definition mu_handling (rmax:nat) (m: mu) (st: eta_state) : eta_state :=
   | Equal ps n p => st[ p|-> Nval (mu_eq ps n st)]
   | ModMult ps n m =>  bitstring_to_eta (nat2fb 
   ((a_nat2fb (posi_list_to_bitstring ps st) rmax) * (a_nat2fb n rmax) mod (a_nat2fb m rmax))) ps (length ps)
+  | Equal_posi_list ps qs p => st[ p|-> Nval (equality_list_posi_check rmax ps qs st)]
   end.
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state): eta_state :=
    match e with 
@@ -589,24 +609,12 @@ end.
 Definition env_equivb vars (st st' : var -> nat) :=
   forallb (fun x =>  st x =? st' x) vars.
 
-
-Fixpoint rz_val_eq (n:nat) (x y : rz_val) :=
-    match n with 0 => true
-               | S m => Bool.eqb (x m) (y m) && rz_val_eq m x y
-    end.
-
-Definition basis_val_eq (rmax:nat) (x y : basis_val) :=
-   match (x,y) with (Nval b, Nval b') => Bool.eqb b b'
-                | (Rval bl1, Rval bl2) => rz_val_eq rmax bl1 bl2
-                | _ => false
-   end.
-
 Definition st_equivb (rmax:nat) (vars: list posi) (st st': eta_state) :=
   forallb (fun x => basis_val_eq rmax (st x) (st' x)) vars.
 
 From Coq Require Import Arith NArith.
 From QuickChick Require Import QuickChick.
-Require Import Testing.
+(* Require Import Testing. *)
 
 Definition bv2Eta (n:nat) (x:var) (l: N) : eta_state :=
    fun p => if (snd p <? n) && (fst p =? x) then Nval (N.testbit_nat l (snd p)) else Nval false.
@@ -783,12 +791,31 @@ Fixpoint repeat_ind (reg: list posi) (index: nat) (P: (posi -> nat -> exp)) :=
     | S m => 2*(pow_2 (m))
     end.
 Check nat2fb.
-    Definition amplitude_amplification_state (n r:nat) (h_n:nat) (w:nat) :=
+    Definition amplitude_amplification_state (n r:nat) (h_n:nat) :=
     New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
       repeat (lst_posi h_n y_var)  (fun (p:posi) => Next (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 n)))) [;]
       repeat (lst_posi h_n y_var) (fun (p:posi) => repeat_ind (lst_posi n x_var) n (fun (k: posi) (j: nat) => (ICU p (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 (n-j))))))).
       
 End AmplitudeAmplification.
+
+Module DistinctElements.
+Fixpoint repeat_new (index: nat)  :=
+  match index with
+  | 0 => ESKIP
+  | S n => New (lst_posi (S n) x_var) [;] (repeat_new (n))
+  end.
+
+Fixpoint repeat_had (index: nat)  :=
+  match index with
+  | 0 => ESKIP
+  | S n => Had (lst_posi (S n) x_var) [;] (repeat_had (n))
+  end. 
+
+(* Fixpoint repeat_equality_checks (index: nat):= Equal_posi_list  *)
+
+Definition distinct_element_state (n:nat):= New (lst_posi 1 x_var) [;] repeat_new n [;] repeat_had n.
+
+End DistinctElements.
 
 Module SumState.
 
