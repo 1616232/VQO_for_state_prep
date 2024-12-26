@@ -823,8 +823,14 @@ Fixpoint repeat_equality_checks (n m: nat) :=
 | 0 => ESKIP
 | S k => repeat_equality_checks k m [;] equality_checks (S k) m 
 end.
+
+Fixpoint repeat_repeat_equality_checks (n m: nat) :=
+match n with 
+| 0 => ESKIP 
+| S k => repeat_equality_checks (S k) m [;] repeat_repeat_equality_checks k m
+end.
 Definition distinct_element_state (n:nat):= repeat_new n [;] repeat_had n
-[;] repeat_equality_checks (n-1) (n) [;]
+[;] repeat_repeat_equality_checks (n-1) (n) [;]
 Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
 
 End DistinctElements.
