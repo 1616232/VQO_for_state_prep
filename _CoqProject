@@ -28,6 +28,7 @@ BasicUtility.v
 MathSpec.v
 OQASM.v
 PQASM.v
+PTesting.v
 OQASMProof.v
 Testing.v
 CLArith.v
