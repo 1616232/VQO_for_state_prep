@@ -811,9 +811,21 @@ Fixpoint repeat_had (index: nat)  :=
   | S n => Had (lst_posi (S n) x_var) [;] (repeat_had (n))
   end. 
 
-(* Fixpoint repeat_equality_checks (index: nat):= Equal_posi_list  *)
+Definition equality_checks (index: nat): nat -> exp:= match index with 
+  | 0 => fun (n:nat) => ESKIP 
+  | S n => (fun (k:nat) => Equal_posi_list (lst_posi (S n ) x_var) (lst_posi k x_var) (y_var,0) [;]
+  ICU (y_var,0) (Ora (Add (lst_posi 1 x_var) (nat2fb 1))) [;]
+  Equal_posi_list (lst_posi (S n ) x_var) (lst_posi k x_var) (y_var,0))
+  end.
 
-Definition distinct_element_state (n:nat):= New (lst_posi 1 x_var) [;] repeat_new n [;] repeat_had n.
+Fixpoint repeat_equality_checks (n m: nat) := 
+  match n with 
+| 0 => ESKIP
+| S k => repeat_equality_checks k m [;] equality_checks (S k) m 
+end.
+Definition distinct_element_state (n:nat):= repeat_new n [;] repeat_had n
+[;] repeat_equality_checks (n-1) (n) [;]
+Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
 
 End DistinctElements.
 
