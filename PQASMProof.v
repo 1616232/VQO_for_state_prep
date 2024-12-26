@@ -73,7 +73,8 @@ Proof.
  auto.
 Qed.
 
-(* type preservation. *)
+(* type preservation. The theorem showing that a well-typed program,
+    when it has one step evaluation, the output program is also type checked. *)
 Definition aenv_consist (aenv aenv': list var) := forall x, In x aenv -> In x aenv'.
 
 Definition nor_consist (s: list posi) (phi: state) :=
