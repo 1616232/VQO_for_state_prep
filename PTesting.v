@@ -83,7 +83,6 @@ Definition z_var : var := 2.
 
 Fixpoint lst_posi (n:nat) (x:var) :=
    match n with 0 => nil | S m => (x,m)::(lst_posi m x) end.
-(* Check lst_posi.  *)
 (* we prepare a superposition of m different basis-states, where n is the length of qubits in x_var. 
   nat2fb turns a nat number to a bitstring. 
   we define a function P for a one step process of the repeat-until-success.
@@ -93,7 +92,6 @@ Definition uniform_state (n:nat) (m:nat) :=
           fun P => New (lst_posi n x_var) [;] New ([(y_var,0)]) [;] Had (lst_posi n x_var)
                              [;] Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
 
-(* Check uniform_state. *)
 Fixpoint repeat_operator_ICU_Add (a b: list posi):= 
   match a with 
 | nil => ESKIP 
@@ -122,11 +120,9 @@ Module Simple.
   (* n= number of qubits to put in this state, m is their maximum value. Here, both lead to skips, but one sets z_var equal to 1, which affects how simple_eq tests it.*)
   Definition uniform_s (n:nat) (m:nat) := 
        Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
-Check uniform_s.
   Definition simple_eq (e:exp) (v:N) (k n m: nat) := 
      let (env,qstate) := prog_sem_fix n e (init_env,(qvars k,bv2Eta n x_var v)) in
         if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? m  else true.
-Check simple_eq.
   Conjecture uniform_correct :
     forall (vx : N) (a b c j k: nat), simple_eq (uniform_s j k) vx a b c = true.
 
@@ -179,10 +175,10 @@ From QuickChick Require Import QuickChick.
 Module Test_prop. 
 Conjecture uniform_state_eskip_behavior: forall (m: nat) (n: nat),
 exp_comparison ((uniform_state m n) ESKIP) ((uniform_state n m) ESKIP) = true.
-(* Check uniform_state_eskip_behavior. *)
+
 Conjecture uniform_state_new_behavior: forall (m n o: nat) (x: var),
 exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) (New (lst_posi o x))) = true.
-(* Check uniform_state_new_behavior. *)
+
 Conjecture uniform_state_new_eskip_behavior: forall (m n o: nat) (x: var),
 exp_comparison ((uniform_state m n) (New (lst_posi o x))) ((uniform_state n m) ESKIP) = true.
 
@@ -276,12 +272,11 @@ Fixpoint repeat_ind (reg: list posi) (index: nat) (P: (posi -> nat -> exp)) :=
     | 0 => 1
     | S m => 2*(pow_2 (m))
     end.
-Check nat2fb.
-    Definition amplitude_amplification_state (n r:nat) (h_n:nat) :=
-    New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
-      repeat (lst_posi h_n y_var)  (fun (p:posi) => Next (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 n)))) [;]
-      repeat (lst_posi h_n y_var) (fun (p:posi) => repeat_ind (lst_posi n x_var) n (fun (k: posi) (j: nat) => (ICU p (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 (n-j))))))).
-      
+Definition amplitude_amplification_state (n r:nat) (h_n:nat) :=
+New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
+    repeat (lst_posi h_n y_var)  (fun (p:posi) => Next (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 n)))) [;]
+    repeat (lst_posi h_n y_var) (fun (p:posi) => repeat_ind (lst_posi n x_var) n (fun (k: posi) (j: nat) => (ICU p (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 (n-j))))))).
+    
 End AmplitudeAmplification.
 
 Module DistinctElements.
@@ -488,7 +483,7 @@ Module ModExpState.
       (lst_posi num_qubits x_var)
       num_qubits
       (fun (p: posi) (i: nat) => (
-        let A := (mod_pow c (pow 2 (i-1)) N (i)) in
+        let A := (mod_pow c (pow 2 (i-1)) N (i+20)) in
           (ICU p (Ora (ModMult (lst_posi num_exp_qubits y_var) (nat2fb A) (nat2fb N))))
       )
       )
@@ -506,4 +501,3 @@ Module ModExpState.
 End ModExpState.
 
 QuickChick (ModExpState.mod_exp_state_correct).
-
