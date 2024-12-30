@@ -228,16 +228,12 @@ Fixpoint disjoint_list (str: list posi): bool :=
      end.  
 
 Fixpoint posi_list_to_bitstring_helper (ps: list posi) (st: eta_state) (n: nat): (nat-> bool) :=
-    fun k=>  match ps with 
-      |[] => false
-      |a::b => match eqb k n with
-          |true => match (st a) with 
-              | Rval r =>  false 
-              | Nval b =>  b 
-              end
-          | false => posi_list_to_bitstring_helper b st n k
-          end
-          end.
+  match ps with nil => allfalse
+             | x::xs => 
+      match st x with Rval r => fun k => if k =? n then false else posi_list_to_bitstring_helper xs st (n+1) k
+                    | Nval b => fun k => if k =? n then b else posi_list_to_bitstring_helper xs st (n+1) k
+      end
+  end.
 Definition posi_list_to_bitstring (ps: list posi) (st: eta_state): (nat-> bool) :=
     posi_list_to_bitstring_helper ps st 0.
     

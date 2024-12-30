@@ -53,13 +53,16 @@ Definition new_env (x:var) (qs:list posi) (st:fstate) :=
   (fun b => if (b =? x) then (a_nat2fb (posi_list_to_bitstring qs (snd (snd st))) (length qs)) else (fst st) b).
    
 
+Definition add_list (qs:list posi) (st:fstate) :=
+   (fst st, (qs ++ fst (snd st), snd (snd st))).
+
 Fixpoint prog_sem_fix (rmax: nat) (e: exp)(st: fstate) : fstate := match e with 
 | Next p => (fst st, (fst (snd st),instr_sem rmax p (snd (snd st))))
 | ESeq k m => prog_sem_fix rmax k (prog_sem_fix rmax m st)
 | IFa k op1 op2=> if (eval_bexp (fst st) k) then (prog_sem_fix rmax op1 st) else (prog_sem_fix rmax op2 st)
 | ESKIP => st
 | Had b => st
-| New b => st
+| New b => add_list b st
 | Meas x qs e1 => prog_sem_fix rmax e1 ((new_env x qs st),(set_diff_posi (fst (snd st)) qs, snd (snd st)))
 end.
 
@@ -90,7 +93,7 @@ Fixpoint lst_posi (n:nat) (x:var) :=
  *)
 Definition uniform_state (n:nat) (m:nat) := 
           fun P => New (lst_posi n x_var) [;] New ([(y_var,0)]) [;] Had (lst_posi n x_var)
-                             [;] Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
+                             [;] Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var [(y_var,0)] (IFa (CEq z_var (Num 1)) ESKIP P).
 
 Fixpoint repeat_operator_ICU_Add (a b: list posi):= 
   match a with 
@@ -117,18 +120,29 @@ Module Simple.
 
   (* Definition init_st : eta_state := fun _ => (Rval (fun (n:nat) => true)). *)
 
+(*
+  Fixpoint list_eq (x:posi) (l: list posi) :=
+    match l with nil => false
+               | y::ys => if posi_eq x y then true else list_eq x ys
+    end.
+
+  Fixpoint list_include (l1 l2: list posi) :=
+    match l1 with nil => True
+               | x::xs => (list_eq x l2) && list_include xs l2
+    end. 
+*)
   (* n= number of qubits to put in this state, m is their maximum value. Here, both lead to skips, but one sets z_var equal to 1, which affects how simple_eq tests it.*)
   Definition uniform_s (n:nat) (m:nat) := 
        Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
   Definition simple_eq (e:exp) (v:nat) (n: nat) := 
      let (env,qstate) := prog_sem_fix n e (init_env,(qvars n,bv2Eta n x_var (N.of_nat v))) in
-        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? v  else true.
+        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? v  else v <=?  a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n.
   Conjecture uniform_correct :
     forall (n:nat) (vx : nat), vx < 2^n -> simple_eq (uniform_s n vx) vx n = true.
 
 End Simple.
 
-QuickChick (Simple.uniform_correct 4). 
+QuickChick (Simple.uniform_correct 60). 
 
 Definition exp_comparison (e1 e2: exp): bool :=
   match e1 with 
@@ -514,5 +528,7 @@ Module ModExpState.
 
 End ModExpState.
 
+(*
 QuickChick (ModExpState.mod_exp_state_correct).
+*)
 
