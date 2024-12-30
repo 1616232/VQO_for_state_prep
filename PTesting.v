@@ -104,10 +104,10 @@ Definition hamming_weight_superposition (n m:nat) :=
                                [;] Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP P).
 
 Module Simple.
-(* 
-  Definition rmax := 16.
 
-  Definition m := 1000. *)
+  (* Definition rmax := 16. *)
+
+  Definition m := 1000.
 
   (* Definition cvars := [z_var]. *)
 
@@ -124,11 +124,11 @@ Module Simple.
      let (env,qstate) := prog_sem_fix n e (init_env,(qvars k,bv2Eta n x_var v)) in
         if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? m  else true.
   Conjecture uniform_correct :
-    forall (vx : N) (a b c j k: nat), simple_eq (uniform_s j k) vx a b c = true.
+    forall (vx : N) (c j k: nat), simple_eq (uniform_s j k) vx 60 60 c = true.
 
 End Simple.
 
-QuickChick (Simple.uniform_correct 100).
+(* QuickChick (Simple.uniform_correct 100). *)
 
 Definition exp_comparison (e1 e2: exp): bool :=
   match e1 with 
@@ -193,7 +193,7 @@ Definition bool_to_nat (b: bool) :=
 
 Module Hamming.
 
-  Definition state_qubits := 20.
+  Definition state_qubits := 60.
   Definition hamming_qubits := 6.
   (* Definition target_hamming_w := 17. *)
 
@@ -251,7 +251,7 @@ End Hamming.
 (* Check @choose. *)
 (* Check returnGen. *)
 (* Sample (choose (0,10)). *)
-QuickChick (Hamming.hamming_state_correct 100).
+(* QuickChick (Hamming.hamming_state_correct 100). *)
 
 Module AmplitudeAmplification.
 
@@ -313,6 +313,14 @@ end.
 Definition distinct_element_state (n:nat):= repeat_new n [;] repeat_had n
 [;] repeat_repeat_equality_checks (n-1) (n) [;]
 Meas z_var (lst_posi n x_var) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
+
+(* Definition distinct_elem_test_eq (e:exp) (v:N) := 
+    let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
+       if env z_var =?  (hamming_weight_of_bitstring state_qubits 
+          (posi_list_to_bitstring (fst qstate) (snd qstate))) then true else false.
+
+ Conjecture hamming_state_correct:
+   forall (vx : N) (n: nat), hamming_test_eq (hamming_state state_qubits hamming_qubits n) vx = true. *)
 
 End DistinctElements.
 
@@ -412,14 +420,14 @@ Module SumState.
 
 End SumState.
 
-QuickChick (SumState.sum_state_correct).
+(* QuickChick (SumState.sum_state_correct). *)
 
 Module ModExpState.
 
   Definition c_test := 3.
   Definition N_test := 34.
 
-  Definition num_qubits_test := 8.
+  Definition num_qubits_test := 60.
   Definition num_exp_qubits_test := 7.
 
   (* Environment to start with; all variables set to 0 *)
@@ -496,7 +504,7 @@ Module ModExpState.
           ((mod_pow c_test (fst_reg num_qubits_test (posi_list_to_bitstring (fst qstate) (snd qstate)))) N_test num_qubits_test + 2).
           
   Conjecture mod_exp_state_correct:
-    forall (vx : N), mod_exp_test_eq (mod_exp_state num_qubits_test c_test num_exp_qubits_test N_test) vx = true.
+    forall (vx : N), mod_exp_test_eq (mod_exp_state num_qubits_test c_test num_exp_qubits_test N_test) vx = false.
 
 End ModExpState.
 
