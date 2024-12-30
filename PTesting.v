@@ -120,15 +120,15 @@ Module Simple.
   (* n= number of qubits to put in this state, m is their maximum value. Here, both lead to skips, but one sets z_var equal to 1, which affects how simple_eq tests it.*)
   Definition uniform_s (n:nat) (m:nat) := 
        Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
-  Definition simple_eq (e:exp) (v:N) (k n m: nat) := 
-     let (env,qstate) := prog_sem_fix n e (init_env,(qvars k,bv2Eta n x_var v)) in
-        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? m  else true.
+  Definition simple_eq (e:exp) (v:nat) (n: nat) := 
+     let (env,qstate) := prog_sem_fix n e (init_env,(qvars n,bv2Eta n x_var (N.of_nat v))) in
+        if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? v  else true.
   Conjecture uniform_correct :
-    forall (vx : N) (c j k: nat), simple_eq (uniform_s j k) vx 60 60 c = true.
+    forall (n:nat) (vx : nat), vx < 2^n -> simple_eq (uniform_s n vx) vx n = true.
 
 End Simple.
 
-(* QuickChick (Simple.uniform_correct 100). *)
+QuickChick (Simple.uniform_correct 4). 
 
 Definition exp_comparison (e1 e2: exp): bool :=
   match e1 with 
@@ -251,7 +251,7 @@ End Hamming.
 (* Check @choose. *)
 (* Check returnGen. *)
 (* Sample (choose (0,10)). *)
-(* QuickChick (Hamming.hamming_state_correct 100). *)
+QuickChick (Hamming.hamming_state_correct 100). 
 
 Module AmplitudeAmplification.
 
@@ -492,15 +492,21 @@ Module ModExpState.
       num_qubits
       (fun (p: posi) (i: nat) => (
         let A := (mod_pow c (pow 2 (i-1)) N (i+20)) in
-          (ICU p (Ora (ModMult (lst_posi num_exp_qubits y_var) (nat2fb A) (nat2fb N))))
+          (ICU p (Ora (ModMult (lst_posi num_exp_qubits y_var) A N)))
       )
       )
     ).
 
+  Check N.to_nat.
+
   Definition mod_exp_test_eq (e:exp) (v:N) := 
     let state_qubits := num_qubits_test in
       let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
-        (snd_reg num_qubits_test num_exp_qubits_test (posi_list_to_bitstring (fst qstate) (snd qstate))) =? 
+          
+
+
+
+        (snd_reg num_qubits_test num_qubits_test (posi_list_to_bitstring (fst qstate) (snd qstate))) =? 
           ((mod_pow c_test (fst_reg num_qubits_test (posi_list_to_bitstring (fst qstate) (snd qstate)))) N_test num_qubits_test + 2).
           
   Conjecture mod_exp_state_correct:
@@ -509,3 +515,4 @@ Module ModExpState.
 End ModExpState.
 
 QuickChick (ModExpState.mod_exp_state_correct).
+

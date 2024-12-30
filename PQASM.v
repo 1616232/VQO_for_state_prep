@@ -44,7 +44,7 @@ Inductive cbexp := CEq (x:aexp) (y:aexp) | CLt (x:aexp) (y:aexp).
 Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstring represenation of ps *)
               | Less (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
               | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *)
-              | ModMult (ps : list posi) (n:(nat-> bool)) (m: (nat-> bool))
+              | ModMult (ps : list posi) (n:(nat)) (m: (nat))
               | Equal_posi_list (ps qs: list posi) (p:posi).
 
 Inductive iota:= ISeq (k: iota) (m: iota) | ICU (x:posi) (y:iota)| Ora (e:mu) | Ry (p: posi) (r: rz_val).
@@ -312,7 +312,7 @@ Definition mu_handling (rmax:nat) (m: mu) (st: eta_state) : eta_state :=
   | Less ps n p => st[ p|-> Nval (mu_less ps n st)]
   | Equal ps n p => st[ p|-> Nval (mu_eq ps n st)]
   | ModMult ps n m =>  bitstring_to_eta (nat2fb 
-  ((a_nat2fb (posi_list_to_bitstring ps st) rmax) * (a_nat2fb n rmax) mod (a_nat2fb m rmax))) ps (length ps)
+  ((a_nat2fb (posi_list_to_bitstring ps st) rmax) * n mod m)) ps (length ps)
   | Equal_posi_list ps qs p => st[ p|-> Nval (equality_list_posi_check rmax ps qs st)]
   end.
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state): eta_state :=
