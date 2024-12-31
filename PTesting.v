@@ -76,8 +76,9 @@ From Coq Require Import Arith NArith.
 From QuickChick Require Import QuickChick.
 (* Require Import Testing. *)
 
-Definition bv2Eta (n:nat) (x:var) (l: N) : eta_state :=
-   fun p => if (snd p <? n) && (fst p =? x) then Nval (N.testbit_nat l (snd p)) else Nval false.
+Definition bv2Eta (n:nat) (x:var) (l: nat) : eta_state :=
+   let f := nat2fb l in
+   fun p => if (snd p <? n) && (fst p =? x) then Nval (f (snd p)) else Nval false.
 
 (* Examples. We use the constant hard-code variable names below. *)
 Definition x_var : var := 0.
@@ -108,9 +109,10 @@ Definition hamming_weight_superposition (n m:nat) :=
 
 Module Simple.
 
-  (* Definition rmax := 16. *)
+  (* Definition rmax := 16. 
 
   Definition m := 1000.
+  *)
 
   (* Definition cvars := [z_var]. *)
 
@@ -135,7 +137,7 @@ Module Simple.
   Definition uniform_s (n:nat) (m:nat) := 
        Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
   Definition simple_eq (e:exp) (v:nat) (n: nat) := 
-     let (env,qstate) := prog_sem_fix n e (init_env,(qvars n,bv2Eta n x_var (N.of_nat v))) in
+     let (env,qstate) := prog_sem_fix n e (init_env,(qvars n,bv2Eta n x_var v)) in
         if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? v  else v <=?  a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n.
   Conjecture uniform_correct :
     forall (n:nat) (vx : nat), vx < 2^n -> simple_eq (uniform_s n vx) vx n = true.
@@ -183,7 +185,6 @@ Definition exp_map_comparison (e1: (exp->exp)) (e2: (exp->exp)): bool:=
 Lemma exp_of_uniform_state: forall (m n: nat) (e1 e2 e3: exp), (exp_comparison (uniform_state m n e3) (ESeq e1 e2))=true.
 Proof. intros. unfold uniform_state. unfold exp_comparison.  reflexivity. Qed. 
 *)
-From QuickChick Require Import QuickChick.
 
 
 Module Test_prop. 
@@ -221,7 +222,7 @@ Module Hamming.
     end. *)
 
   (* Quantum registers, accessible with x_var and y_var *)
-  Definition qvars : list posi := (lst_posi state_qubits x_var).
+  Definition qvars : list posi := (lst_posi state_qubits y_var)++(lst_posi state_qubits x_var).
 
   (* Environment to start with; all variables set to 0 *)
   Definition init_env : var -> nat := fun _ => 0.
@@ -238,34 +239,34 @@ Module Hamming.
 
   (* For the hamming_test_eq, gets the hamming weight of a bitstring
     bs is the bitstring, n is the length of the bitstring *)
-  Fixpoint hamming_weight_of_bitstring (n: nat) (bs: (nat -> bool)) :=
+  Fixpoint hamming_weight_of_bitstring' (n: nat) (bs: (nat -> bool)) (re:nat) :=
     match n with
-    | 0 => 0
-    | S m => (bool_to_nat (bs n)) + (hamming_weight_of_bitstring m bs)
+    | 0 => re
+    | S m => if bs m then hamming_weight_of_bitstring' m bs (re+1) else hamming_weight_of_bitstring' m bs re
     end.
+  Definition hamming_weight_of_bitstring n bs := hamming_weight_of_bitstring' n bs 0.
 
   (* Prepare a uniform superposition across all states that have a hamming weight equal to w.
     n is the number of qubits in the register being preapred; 
     h_n is the number of qubits to use when measuring the hamming weight
   *)
-  Definition hamming_state (n:nat) (h_n:nat) (w:nat) :=
-    New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
-      (repeat (lst_posi n x_var) (fun (p:posi) => (ICU p (Ora (Add (lst_posi h_n y_var) (nat2fb 1)))))) [;] 
-      Meas z_var (lst_posi h_n y_var) (IFa (CEq z_var (Num w)) ESKIP ESKIP).
+  Definition hamming_state (n:nat) (w:nat) :=
+    (repeat (lst_posi n x_var) (fun (p:posi) => (ICU p (Ora (Add (lst_posi n y_var) (nat2fb 1)))))) [;] 
+      Meas z_var (lst_posi n y_var) (IFa (CEq z_var (Num w)) ESKIP ESKIP).
 
-  Definition hamming_test_eq (e:exp) (v:N) := 
+  Definition hamming_test_eq (e:exp) (v:nat) := 
      let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
         if env z_var =?  (hamming_weight_of_bitstring state_qubits 
            (posi_list_to_bitstring (fst qstate) (snd qstate))) then true else false.
 
   Conjecture hamming_state_correct:
-    forall (vx : N) (n: nat), hamming_test_eq (hamming_state state_qubits hamming_qubits n) vx = true.
+    forall (n: nat) (vx:nat), n < state_qubits -> hamming_test_eq (hamming_state state_qubits n) vx = true.
 
 End Hamming.
 (* Check @choose. *)
 (* Check returnGen. *)
 (* Sample (choose (0,10)). *)
-QuickChick (Hamming.hamming_state_correct 100). 
+QuickChick (Hamming.hamming_state_correct). 
 
 Module AmplitudeAmplification.
 
