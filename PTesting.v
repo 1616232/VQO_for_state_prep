@@ -93,12 +93,12 @@ Fixpoint lst_posi (n:nat) (x:var) :=
  *)
 Definition uniform_state (n:nat) (m:nat) := 
           fun P => New (lst_posi n x_var) [;] New ([(y_var,0)]) [;] Had (lst_posi n x_var)
-                             [;] Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var [(y_var,0)] (IFa (CEq z_var (Num 1)) ESKIP P).
+                             [;] Less (lst_posi n x_var) m (y_var,0) [;] Meas z_var [(y_var,0)] (IFa (CEq z_var (Num 1)) ESKIP P).
 
 Fixpoint repeat_operator_ICU_Add (a b: list posi):= 
   match a with 
 | nil => ESKIP 
-| h::t => (repeat_operator_ICU_Add t b) [;] (ICU h (Ora (Add b (nat2fb 1))))
+| h::t => (repeat_operator_ICU_Add t b) [;] (ICU h (Ora (Add b 1)))
 end.
 
 Definition hamming_weight_superposition (n m:nat) := 
@@ -134,7 +134,7 @@ Module Simple.
 *)
   (* n= number of qubits to put in this state, m is their maximum value. Here, both lead to skips, but one sets z_var equal to 1, which affects how simple_eq tests it.*)
   Definition uniform_s (n:nat) (m:nat) := 
-       Less (lst_posi n x_var) (nat2fb m) (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
+       Less (lst_posi n x_var) m (y_var,0) [;] Meas z_var ([(y_var,0)]) (IFa (CEq z_var (Num 1)) ESKIP ESKIP).
   Definition simple_eq (e:exp) (v:nat) (n: nat) := 
      let (env,qstate) := prog_sem_fix n e (init_env,(qvars n,bv2Eta n x_var v)) in
         if env z_var =? 1 then a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n <? v  else v <=?  a_nat2fb (posi_list_to_bitstring (fst qstate) (snd qstate)) n.
@@ -250,7 +250,7 @@ Module Hamming.
     h_n is the number of qubits to use when measuring the hamming weight
   *)
   Definition hamming_state (n:nat) (w:nat) :=
-    (repeat (lst_posi n x_var) (fun (p:posi) => (ICU p (Ora (Add (lst_posi n y_var) (nat2fb 1)))))) [;] 
+    (repeat (lst_posi n x_var) (fun (p:posi) => (ICU p (Ora (Add (lst_posi n y_var) 1))))) [;] 
       Meas z_var (lst_posi n y_var) (IFa (CEq z_var (Num w)) ESKIP ESKIP).
 
   Definition hamming_test_eq (e:exp) (v:nat) := 
@@ -301,6 +301,7 @@ End AmplitudeAmplification.
 QuickChick (AmplitudeAmplification.aa_state_correct). 
 
 Module DistinctElements.
+
 Fixpoint repeat_new (index: nat)  :=
   match index with
   | 0 => ESKIP

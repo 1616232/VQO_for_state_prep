@@ -43,9 +43,9 @@ Definition rz_val : Set := nat.
 (* Defining the instruction level syntax, by abstracting away the detailed implementations of the quantum arithmetic operations. *)
 
 (*add mod multiplication here, compilation to OQASM*)
-Inductive mu := Add (ps: list posi) (n:(nat-> bool)) (* we add nat to the bitstring represenation of ps *)
-              | Less (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
-              | Equal (ps : list posi) (n:(nat-> bool)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *)
+Inductive mu := Add (ps: list posi) (n:(nat)) (* we add nat to the bitstring represenation of ps *)
+              | Less (ps : list posi) (n:(nat)) (p:posi) (* we compare ps with n (|ps| < n) store the boolean result in p. *)
+              | Equal (ps : list posi) (n:(nat)) (p:posi) (* we compare ps with n (|ps| = n) store the boolean result in p. *)
               | ModMult (ps : list posi) (n:(nat)) (m: (nat))
               | Equal_posi_list (ps qs: list posi) (p:posi).
 
@@ -239,77 +239,54 @@ Fixpoint posi_list_to_bitstring_helper (ps: list posi) (st: eta_state) (n: nat):
 Definition posi_list_to_bitstring (ps: list posi) (st: eta_state): (nat-> bool) :=
     posi_list_to_bitstring_helper ps st 0.
     
-Definition mu_addition (ps: list posi) (n:(nat-> bool)) (st: eta_state): (nat-> bool) :=
-  sumfb false (posi_list_to_bitstring ps st) n.
+Definition mu_addition (ps: list posi) (n:(nat)) (st: eta_state): (nat-> bool) :=
+  sumfb false (posi_list_to_bitstring ps st) (nat2fb n).
 
-  Fixpoint mu_addition_reps (ps: list posi) (n:(nat-> bool)) (st: eta_state) (reps: nat): (nat-> bool):=
+(*
+  Fixpoint mu_addition_reps (ps: list posi) (n:(nat)) (st: eta_state) (reps: nat): (nat-> bool):=
     match reps with 
     |0 => n
     | S m => mu_addition_reps ps (mu_addition ps n st) st m 
     end.
-
+*)
   Definition rz_val_eq (rmax:nat) (x y : rz_val) := x mod 2^rmax =? y mod 2^rmax.
   Definition basis_val_eq (rmax:nat) (x y : basis_val) :=
       match (x,y) with (Nval b, Nval b') => Bool.eqb b b'
                    | (Rval bl1, Rval bl2) => rz_val_eq rmax bl1 bl2
                    | _ => false
       end.
-  Fixpoint equality_list_posi_check (rmax: nat)(a b: list posi) (st: eta_state): bool:=
-    match a with
-    | nil => match b with 
-        | nil => true
-        | head::tail =>  false
-        end
-    | head::tail => match b with 
-        |nil => false
-        | head2::tail2 => if (basis_val_eq rmax (st head) (st head2)) then (equality_list_posi_check rmax tail tail2 st) else false
-        end  
-    end.  
-Fixpoint mu_less_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (n: nat) : bool :=
-  match n with 
-    | 0 => false
-    | S k => match ps with 
-          | [] => false
-          |a::b => match (st a) with 
-          | Rval r =>  false 
-          | Nval j => if ((bitstring n) && j)
-          then (mu_less_helper b bitstring st k)
-          else (bitstring n)
-            end
-          end
-      end.    
-Definition mu_less (ps: list posi) (n:(nat-> bool)) (st: eta_state): bool := 
-  mu_less_helper (rev ps) n st (length ps).
-
-Fixpoint mu_eq_helper (ps: list posi) (bitstring:(nat-> bool)) (st: eta_state) (n: nat) : bool :=
-  match n with 
-    | 0 => false
-    | S k => match ps with 
-      | [] => true
-      |a::b => match (st a) with 
-        | Rval r =>  false 
-        | Nval j => if ((bitstring n) && j) 
-        then mu_eq_helper b bitstring st k
-        else false  
-        end
-    end
-  end.    
-  Definition mu_eq (ps: list posi) (n:(nat-> bool)) (st: eta_state): bool := 
-    mu_eq_helper (rev ps) n st (length ps).
-
-Fixpoint bitstring_to_eta (f:nat -> bool) (l:list posi) (size:nat): eta_state :=
-  match l with nil => (fun posi => Nval false)
-             | x::xs => (fun y => if (posi_eq x y) then Nval (f (size - length (x::xs))) else (bitstring_to_eta f xs size) y)
+Definition mu_less (ps: list posi) (n:(nat)) (st: eta_state) (q:posi) := 
+  match st q with Nval j => st[q |-> Nval (j && (a_nat2fb (posi_list_to_bitstring ps st) (length ps) <? n))]
+                | Rval f => st
   end.
+
+Definition mu_eq (ps: list posi) (n:(nat)) (st: eta_state) (q:posi) := 
+  match st q with Nval j => st[q |-> Nval (j && (a_nat2fb (posi_list_to_bitstring ps st) (length ps) =? n))]
+                | Rval f => st
+  end.
+
+Definition mu_full_eq (ps qs: list posi) (st: eta_state) (q:posi) := 
+  match st q with Nval j => st[q |-> Nval (j && 
+                (a_nat2fb (posi_list_to_bitstring ps st) (length ps) =? a_nat2fb (posi_list_to_bitstring ps st) (length qs)))]
+                | Rval f => st
+  end.
+
+Fixpoint bitstring_to_eta' (st:eta_state) (l:list posi) (f:nat -> bool) (n:nat): eta_state :=
+  match l with nil => st
+              | p::ps => (bitstring_to_eta' st ps f (n+1))[p |-> Nval (f n)]
+  end.
+Definition bitstring_to_eta st l f := bitstring_to_eta' st l f 0.
+
+Definition modmult (st: eta_state) (ps:list posi) (c n:nat): eta_state :=
+  bitstring_to_eta st ps (nat2fb ((c * a_nat2fb (posi_list_to_bitstring ps st) (length ps)) mod n)).
 
 Definition mu_handling (rmax:nat) (m: mu) (st: eta_state) : eta_state :=
   match m with 
-  | Add ps n => bitstring_to_eta (mu_addition ps n st) ps (length ps)
-  | Less ps n p => st[ p|-> Nval (mu_less ps n st)]
-  | Equal ps n p => st[ p|-> Nval (mu_eq ps n st)]
-  | ModMult ps n m =>  bitstring_to_eta (nat2fb 
-  ((a_nat2fb (posi_list_to_bitstring ps st) rmax) * n mod m)) ps (length ps)
-  | Equal_posi_list ps qs p => st[ p|-> Nval (equality_list_posi_check rmax ps qs st)]
+  | Add ps n => bitstring_to_eta st ps (mu_addition ps n st)
+  | Less ps n p => mu_less ps n st p
+  | Equal ps n p => mu_eq ps n st p
+  | ModMult ps n m =>  modmult st ps n m
+  | Equal_posi_list ps qs p => mu_full_eq ps qs st p
   end.
 Fixpoint instr_sem (rmax:nat) (e:iota) (st: eta_state): eta_state :=
    match e with 
