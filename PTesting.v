@@ -9,14 +9,13 @@ Require Import MathSpec.
 Require Import Classical_Prop.
 Require Import RZArith.
 Require Import PQASM.
-Require Import Testing.
 
 (*Require Import OQASM.
 Require Import Coq.QArith.QArith.*)
 Import Nat (eqb).
 (*Import Coq.FSets.FMapList.*)
-From Coq Require Import BinaryString.
-From Coq Require Import Lists.ListSet.
+(*From Coq Require Import BinaryString. 
+From Coq Require Import Lists.ListSet.*)
 (**********************)
 (** Unitary Programs **)
 (**********************)
@@ -86,7 +85,7 @@ Definition y_var : var := 1.
 Definition z_var : var := 2.
 
 Fixpoint lst_posi (n:nat) (x:var) :=
-   match n with 0 => nil | S m => (x,m)::(lst_posi m x) end.
+   match n with 0 => nil | S m => (lst_posi m x)++[(x, m)] end.
 (* we prepare a superposition of m different basis-states, where n is the length of qubits in x_var. 
   nat2fb turns a nat number to a bitstring. 
   we define a function P for a one step process of the repeat-until-success.
@@ -206,6 +205,13 @@ Definition bool_to_nat (b: bool) :=
   | false => 0
   end.
 
+(* Returns an expression to run P on each qubit position in reg*)
+Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
+    match reg with
+    | nil => ESKIP
+    | p::r => (P p) [;] (repeat r P)
+    end.
+
 Module Hamming.
 
   Definition state_qubits := 60.
@@ -229,13 +235,6 @@ Module Hamming.
 
   (* not sure if this is actually needed *)
   Definition init_st : eta_state := fun _ => Nval false.
-
-  (* Returns an expression to run P on each qubit position in reg*)
-  Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
-    match reg with
-    | nil => ESKIP
-    | p::r => (P p) [;] (repeat r P)
-    end.
 
   (* For the hamming_test_eq, gets the hamming weight of a bitstring
     bs is the bitstring, n is the length of the bitstring *)
@@ -270,29 +269,36 @@ QuickChick (Hamming.hamming_state_correct).
 
 Module AmplitudeAmplification.
 
-  (* Returns an expression to run P on each qubit position in reg*)
-  Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
-    match reg with
-    | nil => ESKIP
-    | p::r => (P p) [;] (repeat r P) 
-    end.
+  Definition state_qubits := 60.
+
+  Definition qvars : list posi := (y_var,0)::(lst_posi state_qubits x_var).
+
+  (* Environment to start with; all variables set to 0 *)
+  Definition init_env : var -> nat := fun _ => 0.
+
 (* Like repeat, but also gives the function an index to work with*)
-Fixpoint repeat_ind (reg: list posi) (index: nat) (P: (posi -> nat -> exp)) :=
+Fixpoint repeat_ry (reg: list posi) (r:nat) :=
   match reg with
   | nil => ESKIP
-  | p::r => (P p index) [;] (repeat_ind r (index-1) P)
+  | p::xs => ((ICU p (Ry (y_var,0) r))) [;] (repeat_ry xs (2*r))
   end.
-  Fixpoint pow_2 (n: nat) :=
-    match n with
-    | 0 => 1
-    | S m => 2*(pow_2 (m))
-    end.
-Definition amplitude_amplification_state (n r:nat) (h_n:nat) :=
-New (lst_posi n x_var) [;] New (lst_posi h_n y_var) [;] Had (lst_posi n x_var) [;]
-    repeat (lst_posi h_n y_var)  (fun (p:posi) => Next (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 n)))) [;]
-    repeat (lst_posi h_n y_var) (fun (p:posi) => repeat_ind (lst_posi n x_var) n (fun (k: posi) (j: nat) => (ICU p (Ry p (fun (a:nat)=> nat2fb a (r/pow_2 (n-j))))))).
-    
+Definition amplitude_amplification_state (r:nat) (rmax:nat) :=
+    Next (Ry (y_var,0) (r)) [;]
+    repeat_ry (lst_posi rmax x_var) (2*r).
+
+  Definition aa_state_eq (s:eta_state) (r:nat) (x:nat) (rmax:nat) := 
+     match s (y_var,0) with Nval b => false | Rval n => n =? ((2*x + 1) * r) mod 2^rmax end.
+
+  Definition aa_test_eq (e:exp) (v:nat) (r:nat) := 
+     let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var r)) in
+            aa_state_eq (snd qstate) r (a_nat2fb (posi_list_to_bitstring ((lst_posi state_qubits x_var)) (snd qstate)) state_qubits) state_qubits.
+
+  Conjecture aa_state_correct:
+    forall (r: nat) (vx:nat), r < 2^state_qubits -> aa_test_eq (amplitude_amplification_state r state_qubits) vx r = true.
+
 End AmplitudeAmplification.
+
+QuickChick (AmplitudeAmplification.aa_state_correct). 
 
 Module DistinctElements.
 Fixpoint repeat_new (index: nat)  :=
