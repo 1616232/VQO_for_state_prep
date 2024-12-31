@@ -317,7 +317,10 @@ Module ModExpState.
   Definition init_env : var -> nat := fun _ => 0.
 
   (* Quantum registers; x_var stores all of the state qubits*)
-  Definition qvars : list posi := (lst_posi (num_qubits) y_var)++(lst_posi (num_qubits) x_var).
+  Definition yvars:= (lst_posi num_qubits y_var).
+
+  Definition xvars := (lst_posi num_qubits x_var).
+  Definition qvars : list posi := yvars++xvars.
   
   (* Returns c^n mod m. c is the base number, n is the exponent, m is the mod factor, 
   and max_iter is the maximum number of iterations this function should have. 
@@ -374,16 +377,20 @@ Module ModExpState.
      end.
 
   Definition mod_exp_state (c n: nat) :=
-    repeat_modmult
-      (lst_posi num_qubits x_var) (lst_posi num_qubits y_var) c n.
+    (Add yvars 1) [;] repeat_modmult xvars yvars c n.
 
-  Definition mod_exp_test_eq (e:exp) (c n v:nat) := 
+  Fixpoint cton (size:nat) (vx: nat -> bool) (c n:nat) :=
+   match size with 0 => 1
+                 | S m => if vx m then (2^m * c * (cton m vx c n)) mod n else cton m vx c n
+   end.
+
+  Definition mod_exp_test_eq (e:exp) (v c n:nat) := 
       let (env,qstate) := prog_sem_fix num_qubits e (init_env,(qvars,bv2Eta num_qubits x_var v)) in
-          a_nat2fb (posi_list_to_bitstring (lst_posi num_qubits y_var) (snd qstate)) num_qubits =?
-                 (c^(a_nat2fb (posi_list_to_bitstring (lst_posi num_qubits x_var) (snd qstate)) num_qubits) mod n).
+          let vx := (posi_list_to_bitstring xvars (snd qstate)) in
+          a_nat2fb (posi_list_to_bitstring yvars (snd qstate)) num_qubits =? cton num_qubits vx c n.
           
   Conjecture mod_exp_state_correct:
-    forall (vx : nat), vx < 2^num_qubits -> mod_exp_test_eq (mod_exp_state c_test N_test) vx c_test N_test = true.
+    forall (vx : nat), vx < 2^16 -> mod_exp_test_eq (mod_exp_state c_test N_test) vx c_test N_test = true.
 
 End ModExpState.
 
