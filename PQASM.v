@@ -142,60 +142,6 @@ Definition set_diff_posi := set_diff posi_eq_dec.
 Definition qrecord_diff (q:qrecord) (l:list posi) := (set_diff_posi (had q) l, set_diff_posi (nor q) l, set_diff_posi (rot q) l).
 
 
-
-(* Defining typing rules here. *)
-
-(* Defining the inductive relation for disjoint. *)
-Inductive disjoint : list posi -> Prop :=
-   dis_empty : disjoint nil
-  | dis_many : forall q qs, ~ In q qs -> disjoint qs -> disjoint (q::qs). 
-
-(* subset definition. May turn it into bool type function. *)
-Inductive sublist : list posi -> list posi -> Prop :=
-   sublist_empty : forall qs, sublist nil qs
- | sublist_many : forall q qs1 qs2, In q qs2 -> sublist qs1 qs2 -> sublist (q::qs1) qs2.
-
-Inductive type_aexp : list var -> aexp -> Prop :=
-   | ba_type : forall env x, In x env -> type_aexp env x
-   | num_type : forall env n, type_aexp env (Num n)
-   | plus_type : forall env e1 e2, type_aexp env e1 -> type_aexp env e2 -> type_aexp env (APlus e1 e2)
-   | mult_type : forall env e1 e2, type_aexp env e1 -> type_aexp env e2 -> type_aexp env (AMult e1 e2).
-
-Inductive type_cbexp : list var -> cbexp -> Prop :=
-  | ceq_type : forall env a b, type_aexp env a -> type_aexp env b -> type_cbexp env (CEq a b)
-  | clt_type : forall env a b, type_aexp env a -> type_aexp env b -> type_cbexp env (CLt a b).
-
-Inductive type_mu : list posi -> mu -> Prop :=
-   type_add : forall qs v, disjoint qs -> type_mu qs (Add qs v)
- | type_less: forall qs q v, disjoint (q::qs) -> type_mu (q::qs) (Less qs v q)
- | type_eq:   forall qs q v, disjoint (q::qs) -> type_mu (q::qs) (Equal qs v q). 
-
-(* Equivalence Relations among records *)
-Inductive rec_eq : list qrecord -> list qrecord -> Prop :=
-   join_eq : forall q1 q2 q3 q4 q5 q6 qs, rec_eq ((q1,q2,q3)::(q4,q5,q6)::qs) ((q1++q4,q2++q5,q3++q6)::qs)
- | nor_split_eq : forall q1 q2 qs, rec_eq ((nil,q1++q2,nil)::qs) ((nil,q1,nil)::(nil,q2,nil)::qs)
- | had_split_eq : forall q1 q2 qs, rec_eq ((q1++q2,nil,nil)::qs) ((q1,nil,nil)::(q2,nil,nil)::qs)
- | swap_eq : forall qs1 qs2, rec_eq (qs1++qs2) (qs2++qs1).
-
-(* Type Rules. *)
-
-Inductive ityping : list qrecord -> iota -> list qrecord -> Prop :=
-   rec_eq_ty : forall ia T1 T2 T3, rec_eq T1 T2 -> ityping T2 ia T3 -> ityping T1 ia T3
- | ry_nor : forall p r T, ityping ((nil,([p]),nil)::T) (Ry p r) ((nil,nil,([p]))::T)
- | ry_rot : forall th T p r ps, rot th = (p::ps) -> ityping (th::T) (Ry p r) (th::T)
- | mu_nor : forall qs mu th T, type_mu qs mu -> sublist qs (nor th) -> ityping (th::T) (Ora mu) (th::T)
- | cu_nor : forall q qs ia th T, nor th = (q::qs) -> ityping ((nor_sub th qs)::T) ia ((nor_sub th qs)::T) -> ityping (th::T) (ICU q ia) (th::T)
- | cu_had : forall q qs ia th T, nor th = (q::qs) -> ityping ((had_sub th qs)::T) ia ((had_sub th qs)::T) -> ityping (th::T) (ICU q ia) (th::T)
- | iseq_ty : forall qa qb T1 T2 T3, ityping T1 qa T2 -> ityping T2 qb T3 -> ityping T1 (ISeq qa qb) T2.
-
-Inductive etype : list var -> list qrecord -> exp -> list qrecord -> Prop :=
-   next_ty : forall s p T, ityping T p T -> etype s T (Next p) T
- | had_ty : forall qs s T, etype s ((nil,qs,nil)::T) (Had qs) ((qs,nil,nil)::T)
- | new_ty : forall qs s T, disjoint qs -> set_inter_posi qs (flat_union T) = nil -> etype s T (New qs) ((nil,qs,nil)::T)
- | eseq_ty : forall s qa qb T1 T2 T3, etype s T1 qa T2 -> etype s T2 qb T3 -> etype s T1 (ESeq qa qb) T2
- | eif_ty : forall b e1 e2 s T T1, type_cbexp s b -> etype s T e1 T1 -> etype s T e2 T1 -> etype s T (IFa b e1 e2) T
- | mea_ty : forall x qs e s th T T1, sublist qs (rec_union th) -> etype (x::s) ((qrecord_diff th qs)::T) e T1 -> etype s (th::T) (Meas x  qs e) T1.
-
 (* Instruction level Semantic Functions. 
    The instruction level semantics is defined based on transitions over basis-kets. *)
 Definition match_posi (a: posi) (b:posi): bool :=
@@ -448,16 +394,16 @@ Fixpoint exp_subst_c (a:exp) (x:var) (n:nat) :=
   end.
 
 (* The program level semantic rules. *)
-Inductive prog_sem {rmax:nat}: config -> R -> config -> Prop :=
-   seq_sem_1 : forall phi e,  prog_sem (phi, ESKIP [;] e) (1:R) (phi,e)
- | seq_sem_2: forall phi phi' r e1 e1' e2, prog_sem (phi,e1) r (phi',e1') -> prog_sem (phi, e1 [;] e2) r (phi', e1' [;] e2)
- | if_sem_3: forall phi b e1 e2, simp_bexp b = None -> prog_sem (phi, IFa b e1 e2) 1 (phi, IFa b e1 e2)
- | if_sem_1 : forall phi b e1 e2, simp_bexp b = Some true -> prog_sem (phi, IFa b e1 e2) 1 (phi, e1)
- | if_sem_2 : forall phi b e1 e2, simp_bexp b = Some false -> prog_sem (phi, IFa b e1 e2) 1 (phi, e2)
- | new_sem : forall phi bl, prog_sem (phi, New bl) 1 (add_new phi bl, ESKIP)
- | iota_sem : forall phi e, prog_sem (phi, Next e) 1 (app_inst rmax phi e, ESKIP)
- | had_sem : forall phi bl, prog_sem (phi, Had bl) 1 (apply_hads phi bl, ESKIP)
+Inductive prog_sem {rmax:nat}: state -> exp -> R -> state -> exp -> Prop :=
+   seq_sem_1 : forall phi e,  prog_sem phi (ESKIP [;] e) (1:R) phi e
+ | seq_sem_2: forall phi phi' r e1 e1' e2, prog_sem phi e1 r phi' e1' -> prog_sem phi (e1 [;] e2) r phi' (e1' [;] e2)
+ | if_sem_3: forall phi b e1 e2, simp_bexp b = None -> prog_sem phi (IFa b e1 e2) 1 phi (IFa b e1 e2)
+ | if_sem_1 : forall phi b e1 e2, simp_bexp b = Some true -> prog_sem phi (IFa b e1 e2) 1 phi e1
+ | if_sem_2 : forall phi b e1 e2, simp_bexp b = Some false -> prog_sem phi (IFa b e1 e2) 1 phi e2
+ | new_sem : forall phi bl, prog_sem phi (New bl) 1 (add_new phi bl) ESKIP
+ | iota_sem : forall phi e, prog_sem phi (Next e) 1 (app_inst rmax phi e) ESKIP
+ | had_sem : forall phi bl, prog_sem phi (Had bl) 1 (apply_hads phi bl) ESKIP
  | mea_sem : forall phi x qs e bl phi' rv, apply_mea rmax phi qs bl = (phi',rv) 
-           -> prog_sem (phi, Meas x qs e) rv (phi', exp_subst_c e x (a_nat2fb bl (length qs))).
+           -> prog_sem phi (Meas x qs e) rv phi' (exp_subst_c e x (a_nat2fb bl (length qs))).
 
 
