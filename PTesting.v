@@ -49,7 +49,7 @@ Definition tstate : Type := list posi * eta_state.
 Definition fstate : Type := (var -> nat) * tstate.
 
 Definition new_env (x:var) (qs:list posi) (st:fstate) :=
-  (fun b => if (b =? x) then (a_nat2fb (posi_list_to_bitstring qs (snd (snd st))) (length qs)) else (fst st) b).
+    update (fst st) x (a_nat2fb (posi_list_to_bitstring qs (snd (snd st))) (length qs)).
    
 
 Definition add_list (qs:list posi) (st:fstate) :=
@@ -57,7 +57,7 @@ Definition add_list (qs:list posi) (st:fstate) :=
 
 Fixpoint prog_sem_fix (rmax: nat) (e: exp)(st: fstate) : fstate := match e with 
 | Next p => (fst st, (fst (snd st),instr_sem rmax p (snd (snd st))))
-| ESeq k m => prog_sem_fix rmax k (prog_sem_fix rmax m st)
+| ESeq k m => prog_sem_fix rmax m (prog_sem_fix rmax k st)
 | IFa k op1 op2=> if (eval_bexp (fst st) k) then (prog_sem_fix rmax op1 st) else (prog_sem_fix rmax op2 st)
 | ESKIP => st
 | Had b => st
@@ -216,7 +216,6 @@ Fixpoint repeat (reg: list posi) (P: (posi -> exp)) :=
 Module Hamming.
 
   Definition state_qubits := 60.
-  Definition hamming_qubits := 6.
   (* Definition target_hamming_w := 17. *)
 
   (* classical variables *)
@@ -229,7 +228,11 @@ Module Hamming.
     end. *)
 
   (* Quantum registers, accessible with x_var and y_var *)
-  Definition qvars : list posi := (lst_posi state_qubits y_var)++(lst_posi state_qubits x_var).
+  Definition yvars:= (lst_posi state_qubits y_var).
+
+  Definition xvars := (lst_posi state_qubits x_var).
+
+  Definition qvars : list posi := yvars++xvars.
 
   (* Environment to start with; all variables set to 0 *)
   Definition init_env : var -> nat := fun _ => 0.
@@ -250,17 +253,18 @@ Module Hamming.
     n is the number of qubits in the register being preapred; 
     h_n is the number of qubits to use when measuring the hamming weight
   *)
-  Definition hamming_state (n:nat) (w:nat) :=
-    (repeat (lst_posi n x_var) (fun (p:posi) => (ICU p (Ora (Add (lst_posi n y_var) 1))))) [;] 
-      Meas z_var (lst_posi n y_var) (IFa (CEq z_var (Num w)) ESKIP ESKIP).
+  Definition hamming_state (w:nat):=
+    (repeat xvars (fun (p:posi) => (ICU p (Ora (Add yvars 1))))) [;]
+      Meas z_var yvars (IFa (CEq z_var (Num w)) ESKIP ESKIP).
 
-  Definition hamming_test_eq (e:exp) (v:nat) := 
+  Definition hamming_test_eq (e:exp) (n:nat) (v:nat) := 
      let (env,qstate) := prog_sem_fix state_qubits e (init_env,(qvars,bv2Eta state_qubits x_var v)) in
-        if env z_var =?  (hamming_weight_of_bitstring state_qubits 
-           (posi_list_to_bitstring (fst qstate) (snd qstate))) then true else false.
+        env z_var =?  (hamming_weight_of_bitstring state_qubits 
+           (posi_list_to_bitstring (xvars) (snd qstate))).
 
   Conjecture hamming_state_correct:
-    forall (n: nat) (vx:nat), n < state_qubits -> hamming_test_eq (hamming_state state_qubits n) vx = true.
+    forall (vx:nat), vx < 2 ^ state_qubits -> hamming_test_eq (hamming_state (hamming_weight_of_bitstring state_qubits (nat2fb vx)))
+              (hamming_weight_of_bitstring state_qubits (nat2fb vx)) vx = true.
 
 End Hamming.
 (* Check @choose. *)
