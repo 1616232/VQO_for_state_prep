@@ -1,4 +1,0 @@
-(executable
- (public_name VQO_for_state_prep)
- (name main)
- (libraries VQO_for_state_prep))
