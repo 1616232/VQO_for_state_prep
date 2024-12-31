@@ -401,7 +401,7 @@ Module DistinctElements.
 
   Definition state_qubits := 60.
 
-  Definition dis_state := 5.
+  Definition dis_state := 2.
 
   Definition qvars : list posi := (lst_posi state_qubits z_var)++((y_var,0)::(lst_posi (dis_state * state_qubits) x_var)).
 
@@ -429,7 +429,8 @@ Module DistinctElements.
   
   Fixpoint distinct_state_aux (n j:nat) (st:eta_state):=
       match n with 0 => true
-                | S m => negb ((a_nat2fb (posi_list_to_bitstring (lst_posi_q m x_var) st) state_qubits) =? (a_nat2fb (posi_list_to_bitstring (lst_posi_q j x_var) st) state_qubits))
+                | S m => negb ((a_nat2fb (posi_list_to_bitstring (lst_posi_q m x_var) st) state_qubits)
+                 =? (a_nat2fb (posi_list_to_bitstring (lst_posi_q j x_var) st) state_qubits))
                          && distinct_state_aux m j st
       end.
    Fixpoint distinct_state_right' (n:nat) (st:eta_state):=
